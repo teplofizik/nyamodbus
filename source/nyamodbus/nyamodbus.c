@@ -18,13 +18,14 @@ void nyamodbus_reset(str_nyamodbus_device * device)
 	// Init buffer...
 	memset(device->state, 0, sizeof(str_nyamodbus_state));
 	
+	device->state->has_data = false;
 	device->state->buffer.size = NYAMODBUS_BUFFER_SIZE;
 }
 
 // Detect step by function code
 // function: code
 //   return: step
-static void nyamodbus_decide_steps(str_nyamodbus_device * device, uint8_t function)
+static void nyamodbus_decide_steps(str_nyamodbus_device * device, enum_modbus_function_code function)
 {
 	device->state->has_data = false;
 	
@@ -68,15 +69,18 @@ static void nyamodbus_decide_steps(str_nyamodbus_device * device, uint8_t functi
 }
 
 // Calc crc16
-static uint16_t nyamodbus_crc(const uint8_t *buf, uint8_t len)
+//   data: packet data
+//   size: packet size without crc
+// return: crc16
+static uint16_t nyamodbus_crc(const uint8_t *data, uint8_t size)
 {
 	uint16_t crc = 0xFFFF;
 	uint8_t i = 0;
 	uint8_t bit = 0;
 
-	for(i = 0; i < len; i++)
+	for(i = 0; i < size; i++)
 	{
-		crc ^= buf[i];
+		crc ^= data[i];
 
 		for(bit = 0; bit < 8; bit++)
 		{
@@ -111,8 +115,56 @@ static bool nyamodbus_checkcrc(const uint8_t * data, uint8_t size)
 //   data: packet data
 //   size: packet size include crc
 // return: true, if correct
-static enum_nyamodbus_error nyamodbus_process(const uint8_t * data, uint8_t size)
+static enum_nyamodbus_error nyamodbus_process(const uint8_t * data, uint8_t size, bool broadcast)
 {
+	enum_modbus_function_code func = (enum_modbus_function_code)data[1];
+	switch(func)
+	{
+	case FUNCTION_READ_COIL:
+		// AH AL CH CL
+		break;
+		
+	case FUNCTION_READ_CONTACTS:
+		// AH AL CH CL
+		break;
+		
+	case FUNCTION_READ_HOLDING:
+		// AH AL CH CL
+		break;
+		
+	case FUNCTION_READ_INPUTS:
+		// AH AL CH CL
+		break;
+		
+	case FUNCTION_WRITE_COIL_SINGLE: 
+		// AH AL VH VL
+		break;
+		
+	case FUNCTION_WRITE_HOLDING_SINGLE:
+		// AH AL VH VL
+		break;
+		
+	case FUNCTION_READ_EXCEPTION_STATUS:
+		break;
+		
+	case FUNCTION_DIAGNOSTIC:
+		break;
+		
+	case FUNCTION_WRITE_COIL_MULTI:
+		// AH AL CH CL SZ DATA
+		break;
+		
+	case FUNCTION_WRITE_HOLDING_MULTI:
+		// AH AL CH CL SZ DATA
+		break;
+		
+	case FUNCTION_REPORT_SLAVE_ID:
+		break;
+		
+	case FUNCTION_READ_DEVICE_IDENTIFICATION:
+		break;
+	}
+	
 	return ERROR_OK;
 }
 
@@ -135,7 +187,7 @@ static void nyamodbus_processbyte(str_nyamodbus_device * device, uint8_t byte)
 		buffer->expected = 4;
 		buffer->data[buffer->added++] = byte;
 		device->state->step = STEP_WAIT_ADDRESS;
-		nyamodbus_decide_steps(device, byte);
+		nyamodbus_decide_steps(device, (enum_modbus_function_code)byte);
 		break;
 		
 	case STEP_WAIT_ADDRESS:
@@ -186,11 +238,18 @@ static void nyamodbus_processbyte(str_nyamodbus_device * device, uint8_t byte)
 			// Check crc16...
 			if(nyamodbus_checkcrc(buffer->data, buffer->expected))
 			{
-				enum_nyamodbus_error error = nyamodbus_process(buffer->data, buffer->expected);
-				if(error != ERROR_OK)
+				uint8_t slave     = buffer->data[0];
+				bool    broadcast = (slave == 255);
+				
+				// Check slave address
+				if((slave == *device->config->address) || broadcast)
 				{
-					// Send error packet
-					
+					enum_nyamodbus_error error = nyamodbus_process(buffer->data, buffer->expected, broadcast);
+					if((error != ERROR_OK) && !broadcast)
+					{
+						// Send error packet
+						
+					}
 				}
 			}
 			device->state->step = STEP_WAIT_SLAVE;
