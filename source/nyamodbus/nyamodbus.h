@@ -11,6 +11,38 @@
 	// Receive buffer size
 	#define NYAMODBUS_BUFFER_SIZE   24
 
+	// Parse step
+	typedef enum {
+		STEP_WAIT_SLAVE,
+		STEP_WAIT_CODE,
+		STEP_WAIT_ADDRESS,
+		STEP_WAIT_COUNT,
+		STEP_WAIT_SIZE,
+		STEP_WAIT_DATA,
+		STEP_WAIT_CRC
+	} enum_nyamodbus_parse_step;
+
+	// Function codes
+	typedef enum {
+		FUNCTION_READ_COIL                  = 1,
+		FUNCTION_READ_CONTACTS              = 2,
+		FUNCTION_READ_HOLDING               = 3,
+		FUNCTION_READ_INPUTS                = 4,
+		FUNCTION_WRITE_COIL_SINGLE          = 5,
+		FUNCTION_WRITE_HOLDING_SINGLE       = 6,
+		
+		FUNCTION_READ_EXCEPTION_STATUS      = 7,
+		FUNCTION_DIAGNOSTIC                 = 8,
+		
+		FUNCTION_WRITE_COIL_MULTI           = 15,
+		FUNCTION_WRITE_HOLDING_MULTI        = 16,
+		
+		FUNCTION_REPORT_SLAVE_ID            = 17,
+		
+		FUNCTION_READ_DEVICE_IDENTIFICATION = 43
+	} enum_modbus_function_code;
+
+
 	typedef enum {
 		ERROR_OK              = 0, // OK
 		ERROR_NO_FUNCTION     = 1, // Function code accepted can not be processed
@@ -20,7 +52,6 @@
 		ERROR_LONG_ACTION     = 5, // The slave has accepted the request and processes it, but it takes a long time. This response prevents the host from generating a timeout error.
 		ERROR_BUSY            = 6, // The slave is busy processing the command. The master must repeat the message later when the slave is freed.
 		ERROR_NEED_DIAGNOSTIC = 7, // The slave can not execute the program function specified in the request. This code is returned for an unsuccessful program request using functions with numbers 13 or 14. The master must request diagnostic information or error information from the slave.
-		
 		ERROR_PARITY          = 8  // The slave detected a parity error when reading the extended memory. The master can repeat the request, but usually in such cases, repairs are required.
 	} enum_nyamodbus_error;
 
@@ -115,18 +146,23 @@
 	// Buffer
 	typedef struct {
 		// Data buffer
-		uint8_t data[NYAMODBUS_BUFFER_SIZE]
+		uint8_t  data[NYAMODBUS_BUFFER_SIZE];
 
-		uint16_t size;   // buffer size
-		uint16_t index;  // wait index
-		uint16_t added;  // added index
+		uint16_t size;      // buffer size
+		uint16_t expected;  // wait index
+		uint16_t added;     // added index
 	} str_nyamodbus_buffer;
 	
 	// Driver state
 	typedef struct {
-		// rx buffer
-		str_nyamodbus_buffer buffer;
+		// Parse step
+		enum_nyamodbus_parse_step step;
 		
+		// Packet expects data section
+		bool                      has_data;
+		
+		// rx buffer
+		str_nyamodbus_buffer      buffer;
 	} str_nyamodbus_state;
 	
 	// Modbus driver config and state
@@ -144,5 +180,7 @@
 	// device: device context
 	void nyamodbus_main(str_nyamodbus_device * device);
 	
+	// Reset modbus state
+	void nyamodbus_reset(str_nyamodbus_device * device);
 
 #endif // _NYAMODBUS_H
