@@ -4,17 +4,38 @@
 
 #include "nyamodbus.h"
 #include <string.h>
+#include <stdio.h>
 
 // Init modbus state
 // device: device context
 void nyamodbus_init(str_nyamodbus_device * device)
 {
+#if defined(DEBUG_OUTPUT) && (DEBUG_OUTPUT > 2)
+	puts("nyamodbus_init");
+	
+	if(!device->state)
+		puts("Empty pointer to state!");
+	
+	if(!device->config)
+		puts("Empty pointer to config!");
+	else
+	{
+		if(!device->config->send) puts("Empty pointer to config->send!");
+		if(!device->config->receive) puts("Empty pointer to config->receive!");
+	}
+	
+#endif
+
 	nyamodbus_reset(device);
 }
 
 // Reset modbus state
 void nyamodbus_reset(str_nyamodbus_device * device)
 {
+#if defined(DEBUG_OUTPUT) && (DEBUG_OUTPUT > 2)
+	puts("nyamodbus_reset");
+#endif
+
 	// Init buffer...
 	memset(device->state, 0, sizeof(str_nyamodbus_state));
 	
@@ -106,8 +127,11 @@ static uint16_t nyamodbus_crc(const uint8_t *data, uint8_t size)
 static bool nyamodbus_checkcrc(const uint8_t * data, uint8_t size)
 {
 	uint16_t calc_crc = nyamodbus_crc(data, size - 2);
-	uint16_t exists_crc = (((uint16_t)data[size - 2]) << 8) | data[size - 1];
+	uint16_t exists_crc = (((uint16_t)data[size - 1]) << 8) | data[size - 2];
 	
+#if defined(DEBUG_OUTPUT) && (DEBUG_OUTPUT > 1)
+	printf(" Compare crc16: calc %04x and expected %04x\n", calc_crc, exists_crc);
+#endif
 	return exists_crc == calc_crc;
 }
 
@@ -181,6 +205,10 @@ static void nyamodbus_processbyte(str_nyamodbus_device * device, uint8_t byte)
 		buffer->expected = 1;
 		buffer->data[buffer->added++] = byte;
 		device->state->step = STEP_WAIT_CODE;
+#if defined(DEBUG_OUTPUT) && (DEBUG_OUTPUT > 2)
+		puts("======================");
+		printf("  Slave = %02x\n", byte);
+#endif
 		break;
 		
 	case STEP_WAIT_CODE:
@@ -188,6 +216,9 @@ static void nyamodbus_processbyte(str_nyamodbus_device * device, uint8_t byte)
 		buffer->data[buffer->added++] = byte;
 		device->state->step = STEP_WAIT_ADDRESS;
 		nyamodbus_decide_steps(device, (enum_modbus_function_code)byte);
+#if defined(DEBUG_OUTPUT) && (DEBUG_OUTPUT > 2)
+		printf("  Code = %02x\n", byte);
+#endif
 		break;
 		
 	case STEP_WAIT_ADDRESS:
@@ -196,6 +227,9 @@ static void nyamodbus_processbyte(str_nyamodbus_device * device, uint8_t byte)
 		{
 			buffer->expected = 6;
 			device->state->step = STEP_WAIT_COUNT;
+#if defined(DEBUG_OUTPUT) && (DEBUG_OUTPUT > 2)
+			printf(" Address = %02x%02x\n", buffer->data[2], buffer->data[3]);
+#endif
 		}
 		break;
 		
@@ -205,11 +239,19 @@ static void nyamodbus_processbyte(str_nyamodbus_device * device, uint8_t byte)
 		{
 			if(device->state->has_data)
 			{
+#if defined(DEBUG_OUTPUT) && (DEBUG_OUTPUT > 2)
+				printf(" Value = %02x%02x NEXT:SIZE\n", buffer->data[4], buffer->data[5]);
+#endif
+				
 				buffer->expected = 7;
 				device->state->step = STEP_WAIT_SIZE;
 			}
 			else
 			{
+#if defined(DEBUG_OUTPUT) && (DEBUG_OUTPUT > 2)
+				printf(" Value = %02x%02x NEXT:CRC\n", buffer->data[4], buffer->data[5]);
+#endif
+
 				buffer->expected = 8;
 				device->state->step = STEP_WAIT_CRC;
 			}
@@ -220,10 +262,16 @@ static void nyamodbus_processbyte(str_nyamodbus_device * device, uint8_t byte)
 		buffer->data[buffer->added++] = byte;
 		buffer->expected = 7 + byte;
 		device->state->step = STEP_WAIT_DATA;
+#if defined(DEBUG_OUTPUT) && (DEBUG_OUTPUT > 2)
+		printf("  Size = %d\n", byte);
+#endif
 		break;
 		
 	case STEP_WAIT_DATA:
 		buffer->data[buffer->added++] = byte;
+#if defined(DEBUG_OUTPUT) && (DEBUG_OUTPUT > 2)
+		printf("  Data = %02x\n", byte);
+#endif
 		if(buffer->added == buffer->expected)
 		{
 			buffer->expected += 2;
@@ -235,15 +283,24 @@ static void nyamodbus_processbyte(str_nyamodbus_device * device, uint8_t byte)
 		buffer->data[buffer->added++] = byte;
 		if(buffer->added == buffer->expected)
 		{
+#if defined(DEBUG_OUTPUT) && (DEBUG_OUTPUT > 2)
+			printf(" Crc16 = %02x%02x\n", buffer->data[buffer->expected - 2], buffer->data[buffer->expected - 1]);
+#endif
 			// Check crc16...
 			if(nyamodbus_checkcrc(buffer->data, buffer->expected))
 			{
 				uint8_t slave     = buffer->data[0];
 				bool    broadcast = (slave == 255);
 				
+#if defined(DEBUG_OUTPUT) && (DEBUG_OUTPUT > 2)
+				puts("Crc ok");
+#endif
 				// Check slave address
 				if((slave == *device->config->address) || broadcast)
 				{
+#if defined(DEBUG_OUTPUT) && (DEBUG_OUTPUT > 2)
+					printf("Slave ok: %02x\n", slave);
+#endif
 					enum_nyamodbus_error error = nyamodbus_process(buffer->data, buffer->expected, broadcast);
 					if((error != ERROR_OK) && !broadcast)
 					{
@@ -268,10 +325,16 @@ void nyamodbus_main(str_nyamodbus_device * device)
 	// If something is available to receive...
 	if(device->config->receive && device->config->receive(buffer, &size))
 	{
-		uint8_t i;
-		for(i = 0; i < size; i++)
+		if(size > 0)
 		{
-			nyamodbus_processbyte(device, buffer[i]);
+			uint8_t i;
+#if defined(DEBUG_OUTPUT) && (DEBUG_OUTPUT > 0)
+			printf("Readed %d bytes\n", size);
+#endif
+			for(i = 0; i < size; i++)
+			{
+				nyamodbus_processbyte(device, buffer[i]);
+			}
 		}
 	}
 }
