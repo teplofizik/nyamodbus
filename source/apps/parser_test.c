@@ -13,7 +13,7 @@ void read_coils(void)
 // Read contacts command
 void read_contacts(void)
 {
-	uint8_t buffer[] = { 0x11, 0x02, 0x00, 0xC4, 0x00, 0x16, 0xBA, 0xA9 };
+	uint8_t buffer[] = { 0x11, 0x02, 0x00, 0x01, 0x00, 0x18, 0x2B, 0x50 };
 	emu_send(buffer, sizeof(buffer));
 }
 
@@ -59,6 +59,12 @@ void write_holdings(void)
 	emu_send(buffer, sizeof(buffer));
 }
 
+void read_devid(void)
+{
+	uint8_t buffer[] = { 0x11, 0x2B, 0x0E, 0x01, 0x00, 0xB1, 0xB4 };
+	emu_send(buffer, sizeof(buffer));
+}
+
 int main(int argc, char *argv[])
 {
 	int i;
@@ -73,6 +79,7 @@ int main(int argc, char *argv[])
 	write_holding();
 	write_coils();
 	write_holdings();
+	read_devid();
 	usleep(30000);
 	emu_stop();
 	

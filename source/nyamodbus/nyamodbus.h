@@ -25,6 +25,7 @@
 		STEP_WAIT_COUNT,
 		STEP_WAIT_SIZE,
 		STEP_WAIT_DATA,
+		STEP_WAIT_CUSTOM,
 		STEP_WAIT_CRC
 	} enum_nyamodbus_parse_step;
 
@@ -98,11 +99,9 @@
 	typedef enum_nyamodbus_error (*nyamb_writeholding)(uint16_t id, uint16_t value);
 
 	// Read device information
-	//     id: object id
-	//  value: buffer
-	//   size: buffer size / result size 	
-	// return: error code
-	typedef enum_nyamodbus_error (*nyamb_readdeviceinfo)(uint8_t id, uint8_t * value, uint8_t * size);
+	//  object: object id
+	//  return: pointer to id string or 0
+	typedef const char * (*nyamb_readdeviceinfo)(uint8_t object);
 
 	// Driver configuration
 	typedef struct {
@@ -154,6 +153,12 @@
 		
 		// Packet expects data section
 		bool                      has_data;
+		
+		// Custom header format
+		bool                      custom_header;
+		
+		// custom request size
+		uint8_t                   custom_header_size;
 		
 		// rx buffer
 		str_nyamodbus_buffer      buffer;

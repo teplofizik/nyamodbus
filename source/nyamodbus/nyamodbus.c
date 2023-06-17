@@ -117,6 +117,7 @@ static void nyamodbus_send_packet(str_nyamodbus_device * device, const uint8_t *
 static void nyamodbus_decide_steps(str_nyamodbus_device * device, enum_modbus_function_code function)
 {
 	device->state->has_data = false;
+	device->state->custom_header = false;
 	
 	switch(function)
 	{
@@ -153,6 +154,8 @@ static void nyamodbus_decide_steps(str_nyamodbus_device * device, enum_modbus_fu
 	case FUNCTION_REPORT_SLAVE_ID:
 		break;
 	case FUNCTION_READ_DEVICE_IDENTIFICATION:
+		device->state->custom_header      = true;
+		device->state->custom_header_size = 3;
 		break;
 	}
 }
@@ -224,6 +227,28 @@ static enum_nyamodbus_error nyamodbus_readdigital(str_nyamodbus_device * device,
 		nyamodbus_send_packet(device, result, bytes);
 	
 	return error;
+}
+
+
+// Read device information
+//      id: object id
+//   value: buffer
+//    size: buffer size / result size 	
+//  return: error code
+static enum_nyamodbus_error nyamodbus_readdeviceinfo(const char * id, uint8_t * value, uint8_t * size)
+{
+	if(id != 0)
+	{
+		uint8_t tocopy = strlen(id);
+		if(tocopy > *size)
+			tocopy = *size;
+		
+		strncpy(value, id, tocopy);
+		*size = tocopy;
+		return ERROR_OK;
+	}
+	else
+		return ERROR_NO_DATAADDRESS;
 }
 
 // Process packet
@@ -475,6 +500,58 @@ static enum_nyamodbus_error nyamodbus_process(str_nyamodbus_device * device, con
 		break;
 		
 	case FUNCTION_READ_DEVICE_IDENTIFICATION:
+		{
+			uint8_t subfunc    = data[2];
+			uint8_t product_id = data[3];
+			uint8_t object     = data[4];
+			
+			if(subfunc == 0x0E)
+			{
+#if defined(DEBUG_OUTPUT) && (DEBUG_OUTPUT > 1)
+				printf("   READ_DEVICE_IDENTIFICATION: product %02x object %d\n", product_id, object);
+#endif
+				if(device->config->readdeviceinfo)
+				{
+					uint8_t obj;
+					uint8_t bytes = 8;
+					uint8_t result[NYAMODBUS_OUTPUT_BUFFER_SIZE];
+					result[0] = *device->config->address; // slave address
+					result[1] = data[1];                 // function code
+					result[2] = subfunc;
+					result[3] = product_id;
+					result[4] = 1; // conformity
+					result[5] = 0; // more follows
+					result[6] = 0; // next object id
+					result[7] = 3;
+					
+					for(obj = 0; obj < 3; obj++)
+					{
+						uint8_t   buffer_size = NYAMODBUS_OUTPUT_BUFFER_SIZE - bytes - 2;
+						uint8_t * dst = &result[bytes + 2];
+						const char * id = device->config->readdeviceinfo(obj);
+						
+						error = nyamodbus_readdeviceinfo(id, dst, &buffer_size);
+						if(error != ERROR_OK)
+							break;
+						
+						result[bytes++] = obj;
+						result[bytes++] = buffer_size;
+						
+						bytes += buffer_size;
+					}
+					
+					nyamodbus_send_packet(device, result, bytes);
+				}
+#if defined(DEBUG_OUTPUT) && (DEBUG_OUTPUT > 0)
+				else
+					puts("    No handler: device->config->readdeviceinfo");
+#endif
+			}
+#if defined(DEBUG_OUTPUT) && (DEBUG_OUTPUT > 0)
+			else
+				puts("Unkonown subfunction code for 43 function");
+#endif
+		}
 		break;
 	}
 	
@@ -516,13 +593,36 @@ static void nyamodbus_processbyte(str_nyamodbus_device * device, uint8_t byte)
 		break;
 		
 	case STEP_WAIT_CODE:
-		buffer->expected = 4;
 		buffer->data[buffer->added++] = byte;
-		device->state->step = STEP_WAIT_ADDRESS;
 		nyamodbus_decide_steps(device, (enum_modbus_function_code)byte);
+		if(device->state->custom_header)
+		{
+			device->state->step = STEP_WAIT_CUSTOM;
+			buffer->expected = 2 + device->state->custom_header_size;
 #if defined(DEBUG_OUTPUT) && (DEBUG_OUTPUT > 2)
-		printf(" Code = %02x\n", byte);
+		printf(" Code = %02x NEXT:CUSTOM\n", byte);
 #endif
+		}
+		else
+		{
+			device->state->step = STEP_WAIT_ADDRESS;
+			buffer->expected = 4;
+#if defined(DEBUG_OUTPUT) && (DEBUG_OUTPUT > 2)
+		printf(" Code = %02x NEXT:ADDRESS\n", byte);
+#endif
+		}
+
+		break;
+	case STEP_WAIT_CUSTOM:
+		buffer->data[buffer->added++] = byte;
+#if defined(DEBUG_OUTPUT) && (DEBUG_OUTPUT > 2)
+		printf("  Data = %02x\n", byte);
+#endif
+		if(buffer->added == buffer->expected)
+		{
+			buffer->expected += 2;
+			device->state->step = STEP_WAIT_CRC;
+		}
 		break;
 		
 	case STEP_WAIT_ADDRESS:
