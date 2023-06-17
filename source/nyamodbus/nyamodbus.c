@@ -79,19 +79,36 @@ static uint16_t nyamodbus_crc(const uint8_t *data, uint8_t size)
 	return swap16(crc);
 }
 
+// Get u16 value from packet
+//   data: packet data
+// offset: offset
+// return: value
+static uint16_t get_u16_value(const uint8_t * data, uint8_t offset)
+{
+	return (((uint16_t)data[offset]) << 8) | data[offset + 1];
+}
+
+// Set u16 value to packet
+//   data: packet data
+// offset: offset
+static void set_u16_value(uint8_t * data, uint8_t offset, uint16_t value)
+{
+	data[offset]     = (value >> 8) & 0xFF;
+	data[offset + 1] = value & 0xFF;
+}
+
 // Send packet
 // data: data without crc
 // size: data size
 static void nyamodbus_send_packet(str_nyamodbus_device * device, const uint8_t * data, uint8_t size)
 {
 	uint16_t crc = nyamodbus_crc(data, size);
-	uint8_t crcdata[2];
+	uint8_t result[NYAMODBUS_OUTPUT_BUFFER_SIZE];
 	
-	crcdata[0] = (crc >> 8) & 0xFF;
-	crcdata[1] = crc & 0xFF;
+	memcpy(result, data, size);
+	set_u16_value(result, size, crc);
 	
-	device->config->send(data, size);
-	device->config->send(crcdata, sizeof(crcdata));
+	device->config->send(result, size + 2);
 }
 
 // Detect step by function code
@@ -138,25 +155,6 @@ static void nyamodbus_decide_steps(str_nyamodbus_device * device, enum_modbus_fu
 	case FUNCTION_READ_DEVICE_IDENTIFICATION:
 		break;
 	}
-}
-
-// Get u16 value from packet
-//   data: packet data
-// offset: offset
-// return: value
-static uint16_t get_u16_value(const uint8_t * data, uint8_t offset)
-{
-	return (((uint16_t)data[offset]) << 8) | data[offset + 1];
-}
-
-// Set u16 value to packet
-//   data: packet data
-// offset: offset
-// return: value
-static uint16_t set_u16_value(uint8_t * data, uint8_t offset, uint16_t value)
-{
-	data[offset]     = (value >> 8) & 0xFF;
-	data[offset + 1] = value & 0xFF;
 }
 
 // Check packet crc
@@ -217,7 +215,7 @@ static enum_nyamodbus_error nyamodbus_readdigital(str_nyamodbus_device * device,
 		}
 	}
 	
-	if((i & 0x07) < 0x07)
+	if((i & 0x07) != 0x00)
 	{
 		result[bytes++] = value;
 	}
