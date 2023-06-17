@@ -89,6 +89,11 @@ static void nyamodbus_decide_steps(str_nyamodbus_device * device, enum_modbus_fu
 	}
 }
 
+// Swap bytes in u16 value
+static uint16_t swap16(uint16_t val) {
+  return ((val & 0xFF) << 8) | ((val >> 8) & 0xFF);
+}
+
 // Calc crc16
 //   data: packet data
 //   size: packet size without crc
@@ -120,14 +125,23 @@ static uint16_t nyamodbus_crc(const uint8_t *data, uint8_t size)
 	return crc;
 }
 
+// Get u16 value from packet
+//   data: packet data
+// offset: offset
+// return: value
+static uint16_t get_u16_value(const uint8_t * data, uint8_t offset)
+{
+	return (((uint16_t)data[offset]) << 8) | data[offset + 1];
+}
+
 // Check packet crc
 //   data: packet data
 //   size: packet size include crc
 // return: true, if correct
 static bool nyamodbus_checkcrc(const uint8_t * data, uint8_t size)
 {
-	uint16_t calc_crc = nyamodbus_crc(data, size - 2);
-	uint16_t exists_crc = (((uint16_t)data[size - 1]) << 8) | data[size - 2];
+	uint16_t calc_crc = swap16(nyamodbus_crc(data, size - 2));
+	uint16_t exists_crc = get_u16_value(data, size - 2);
 	
 #if defined(DEBUG_OUTPUT) && (DEBUG_OUTPUT > 1)
 	printf(" Compare crc16: calc %04x and expected %04x\n", calc_crc, exists_crc);
@@ -146,26 +160,68 @@ static enum_nyamodbus_error nyamodbus_process(const uint8_t * data, uint8_t size
 	{
 	case FUNCTION_READ_COIL:
 		// AH AL CH CL
+		{
+			uint16_t address = get_u16_value(data, 2);
+			uint16_t count   = get_u16_value(data, 4);
+#if defined(DEBUG_OUTPUT) && (DEBUG_OUTPUT > 1)
+			printf("   READ_COIL: %04x-%04x (%d)\n", address, address + count - 1, count);
+#endif
+		}
 		break;
 		
 	case FUNCTION_READ_CONTACTS:
 		// AH AL CH CL
+		{
+			uint16_t address = get_u16_value(data, 2);
+			uint16_t count   = get_u16_value(data, 4);
+#if defined(DEBUG_OUTPUT) && (DEBUG_OUTPUT > 1)
+			printf("   READ_CONTACTS: %04x-%04x (%d)\n", address, address + count - 1, count);
+#endif
+		}
 		break;
 		
 	case FUNCTION_READ_HOLDING:
 		// AH AL CH CL
+		{
+			uint16_t address = get_u16_value(data, 2);
+			uint16_t count   = get_u16_value(data, 4);
+#if defined(DEBUG_OUTPUT) && (DEBUG_OUTPUT > 1)
+			printf("   READ_HOLDING: %04x-%04x (%d)\n", address, address + count - 1, count);
+#endif
+		}
 		break;
 		
 	case FUNCTION_READ_INPUTS:
 		// AH AL CH CL
+		{
+			uint16_t address = get_u16_value(data, 2);
+			uint16_t count   = get_u16_value(data, 4);
+#if defined(DEBUG_OUTPUT) && (DEBUG_OUTPUT > 1)
+			printf("   READ_INPUTS: %04x-%04x (%d)\n", address, address + count - 1, count);
+#endif
+		}
 		break;
 		
 	case FUNCTION_WRITE_COIL_SINGLE: 
 		// AH AL VH VL
+		{
+			uint16_t address = get_u16_value(data, 2);
+			uint16_t value   = get_u16_value(data, 4);
+#if defined(DEBUG_OUTPUT) && (DEBUG_OUTPUT > 1)
+			printf("   WRITE_COIL: %04x = %04x\n", address, value);
+#endif
+		}
 		break;
 		
 	case FUNCTION_WRITE_HOLDING_SINGLE:
 		// AH AL VH VL
+		{
+			uint16_t address = get_u16_value(data, 2);
+			uint16_t value   = get_u16_value(data, 4);
+#if defined(DEBUG_OUTPUT) && (DEBUG_OUTPUT > 1)
+			printf("   WRITE_HOLDING: %04x = %04x\n", address, value);
+#endif
+		}
 		break;
 		
 	case FUNCTION_READ_EXCEPTION_STATUS:
@@ -207,7 +263,7 @@ static void nyamodbus_processbyte(str_nyamodbus_device * device, uint8_t byte)
 		device->state->step = STEP_WAIT_CODE;
 #if defined(DEBUG_OUTPUT) && (DEBUG_OUTPUT > 2)
 		puts("======================");
-		printf("  Slave = %02x\n", byte);
+		printf(" Slave = %02x\n", byte);
 #endif
 		break;
 		
@@ -217,7 +273,7 @@ static void nyamodbus_processbyte(str_nyamodbus_device * device, uint8_t byte)
 		device->state->step = STEP_WAIT_ADDRESS;
 		nyamodbus_decide_steps(device, (enum_modbus_function_code)byte);
 #if defined(DEBUG_OUTPUT) && (DEBUG_OUTPUT > 2)
-		printf("  Code = %02x\n", byte);
+		printf(" Code = %02x\n", byte);
 #endif
 		break;
 		
@@ -293,13 +349,13 @@ static void nyamodbus_processbyte(str_nyamodbus_device * device, uint8_t byte)
 				bool    broadcast = (slave == 255);
 				
 #if defined(DEBUG_OUTPUT) && (DEBUG_OUTPUT > 2)
-				puts("Crc ok");
+				puts("  Crc ok");
 #endif
 				// Check slave address
 				if((slave == *device->config->address) || broadcast)
 				{
 #if defined(DEBUG_OUTPUT) && (DEBUG_OUTPUT > 2)
-					printf("Slave ok: %02x\n", slave);
+					printf("  Slave ok: %02x\n", slave);
 #endif
 					enum_nyamodbus_error error = nyamodbus_process(buffer->data, buffer->expected, broadcast);
 					if((error != ERROR_OK) && !broadcast)
