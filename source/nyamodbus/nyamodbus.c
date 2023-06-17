@@ -225,6 +225,7 @@ static enum_nyamodbus_error nyamodbus_process(const uint8_t * data, uint8_t size
 		break;
 		
 	case FUNCTION_READ_EXCEPTION_STATUS:
+	
 		break;
 		
 	case FUNCTION_DIAGNOSTIC:

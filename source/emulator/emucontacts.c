@@ -2,6 +2,8 @@
 // Nyamodbus library v1.0.0 emulator [input - contacts]
 //
 
+#define EMULATOR_INTERNAL
+
 #include "emulator.h"
 
 // Slave id
@@ -10,8 +12,8 @@ static str_nyamodbus_state state;
 
 static const str_nyamodbus_config config = {
 	.address        = &slave_address,
-	.send           = emu_send,
-	.receive        = emu_receive,
+	.send           = emu_send_internal,
+	.receive        = emu_receive_internal,
 	.readdeviceinfo = 0,
 	.readcontacts   = 0,
 	.readanalog     = 0,
