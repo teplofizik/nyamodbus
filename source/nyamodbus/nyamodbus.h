@@ -9,10 +9,13 @@
 #define _NYAMODBUS_H
 
 	// Debug mode (0-3)
-	#define DEBUG_OUTPUT            3
+	#define DEBUG_OUTPUT                 3
 
 	// Receive buffer size
-	#define NYAMODBUS_BUFFER_SIZE   24
+	#define NYAMODBUS_BUFFER_SIZE        128
+
+	// Send buffer size
+	#define NYAMODBUS_OUTPUT_BUFFER_SIZE 128
 
 	// Parse step
 	typedef enum {
@@ -70,11 +73,11 @@
 	// return: true, if ok
 	typedef bool (*nyamb_receive)(uint8_t * data, uint8_t * size);
 
-	// Read contact status
+	// Read digital status
 	//     id: index of contact
 	// status: where to write status 
 	// return: error code
-	typedef enum_nyamodbus_error (*nyamb_readcontacts)(uint16_t id, bool * status);
+	typedef enum_nyamodbus_error (*nyamb_readdigital)(uint16_t id, bool * status);
 
 	// Read analog inputs
 	//     id: index of input
@@ -82,23 +85,11 @@
 	// return: error code
 	typedef enum_nyamodbus_error (*nyamb_readanalog)(uint16_t id, uint16_t * result);
 
-	// Read coil status
-	//     id: index of coils
-	// status: where to write status 
-	// return: error code
-	typedef enum_nyamodbus_error (*nyamb_readcoils)(uint16_t id, bool * status);
-
 	// Write coil
 	//     id: index of coil
 	// status: coil status 
 	// return: error code
 	typedef enum_nyamodbus_error (*nyamb_writecoil)(uint16_t id, bool status);
-
-	// Read holding register
-	//     id: index of register
-	//  value: where to write value 
-	// return: error code
-	typedef enum_nyamodbus_error (*nyamb_readholding)(uint16_t id, uint16_t * value);
 
 	// Write holding register
 	//     id: index of register
@@ -128,19 +119,19 @@
 		nyamb_readdeviceinfo readdeviceinfo;
 		
 		// Read contacts
-		nyamb_readcontacts   readcontacts;
+		nyamb_readdigital    readcontacts;
 		
 		// Read analog inputs
 		nyamb_readanalog     readanalog;
 		
 		// Read coil status
-		nyamb_readcoils      readcoils;
+		nyamb_readdigital    readcoils;
 		
 		// Write coil status
 		nyamb_writecoil      writecoil;
 		
 		// Read holding register
-		nyamb_readholding    readholding;
+		nyamb_readanalog     readholding;
 		
 		// Write holding register
 		nyamb_writeholding   writeholding;

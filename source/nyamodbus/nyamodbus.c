@@ -149,6 +149,16 @@ static uint16_t get_u16_value(const uint8_t * data, uint8_t offset)
 	return (((uint16_t)data[offset]) << 8) | data[offset + 1];
 }
 
+// Set u16 value to packet
+//   data: packet data
+// offset: offset
+// return: value
+static uint16_t set_u16_value(uint8_t * data, uint8_t offset, uint16_t value)
+{
+	data[offset]     = (value >> 8) & 0xFF;
+	data[offset + 1] = value & 0xFF;
+}
+
 // Check packet crc
 //   data: packet data
 //   size: packet size include crc
@@ -162,6 +172,60 @@ static bool nyamodbus_checkcrc(const uint8_t * data, uint8_t size)
 	printf(" Compare crc16: calc %04x and expected %04x\n", calc_crc, exists_crc);
 #endif
 	return exists_crc == calc_crc;
+}
+
+// Read digital values
+//   device: device context
+// function: function code
+//  address: start address
+//    count: register count
+//  readfunc: function to read data
+static enum_nyamodbus_error nyamodbus_readdigital(str_nyamodbus_device * device, uint8_t function, uint16_t address, uint16_t count, nyamb_readdigital readfunc)
+{
+	enum_nyamodbus_error error = ERROR_NO_FUNCTION;
+	uint8_t result[NYAMODBUS_OUTPUT_BUFFER_SIZE];
+	uint16_t i;
+	uint8_t bytes = (count + 7) / 8;
+	uint8_t value = 0;
+	
+	result[0] = *device->config->address; // slave address
+	result[1] = function;                 // function code
+	result[2] = bytes;                    // bytes after header
+	
+	bytes = 3;
+	for(i = 0; i < count; i++)
+	{
+		uint8_t bit = i & 0x7;
+		uint16_t reg = address + i;
+		
+		bool contact = false;
+		error = readfunc(reg, &contact);
+		
+#if defined(DEBUG_OUTPUT) && (DEBUG_OUTPUT > 1)
+		printf("    REG: %04x = %d\n", reg, contact ? 1 : 0);
+#endif
+		if(error != ERROR_OK)
+			break;
+		
+		if(contact)
+			value |= (1 << bit);
+		
+		if((i & 0x07) == 0x07)
+		{
+			result[bytes++] = value;
+			value = 0;
+		}
+	}
+	
+	if((i & 0x07) < 0x07)
+	{
+		result[bytes++] = value;
+	}
+	
+	if(error == ERROR_OK)
+		nyamodbus_send_packet(device, result, bytes);
+	
+	return error;
 }
 
 // Process packet
@@ -183,6 +247,14 @@ static enum_nyamodbus_error nyamodbus_process(str_nyamodbus_device * device, con
 #if defined(DEBUG_OUTPUT) && (DEBUG_OUTPUT > 1)
 			printf("   READ_COIL: %04x-%04x (%d)\n", address, address + count - 1, count);
 #endif
+			if(device->config->readcoils)
+			{
+				error = nyamodbus_readdigital(device, FUNCTION_READ_COIL, address, count, device->config->readcoils);
+			}
+#if defined(DEBUG_OUTPUT) && (DEBUG_OUTPUT > 0)
+			else
+				puts("    No handler: device->config->readcoils");
+#endif
 		}
 		break;
 		
@@ -193,6 +265,14 @@ static enum_nyamodbus_error nyamodbus_process(str_nyamodbus_device * device, con
 			uint16_t count   = get_u16_value(data, 4);
 #if defined(DEBUG_OUTPUT) && (DEBUG_OUTPUT > 1)
 			printf("   READ_CONTACTS: %04x-%04x (%d)\n", address, address + count - 1, count);
+#endif
+			if(device->config->readcontacts)
+			{
+				error = nyamodbus_readdigital(device, FUNCTION_READ_CONTACTS, address, count, device->config->readcontacts);
+			}
+#if defined(DEBUG_OUTPUT) && (DEBUG_OUTPUT > 0)
+			else
+				puts("    No handler: device->config->readcontacts");
 #endif
 		}
 		break;
@@ -213,6 +293,9 @@ static enum_nyamodbus_error nyamodbus_process(str_nyamodbus_device * device, con
 					uint16_t value = 0;
 					uint16_t reg   = address + i;
 					error = device->config->readholding(reg, &value);
+					
+					if(error != ERROR_OK)
+						break;
 					
 #if defined(DEBUG_OUTPUT) && (DEBUG_OUTPUT > 1)
 					printf("    REG: %04x = %04x\n", reg, value);
