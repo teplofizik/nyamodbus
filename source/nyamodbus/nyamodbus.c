@@ -233,10 +233,24 @@ static enum_nyamodbus_error nyamodbus_process(const uint8_t * data, uint8_t size
 		
 	case FUNCTION_WRITE_COIL_MULTI:
 		// AH AL CH CL SZ DATA
+		{
+			uint16_t address = get_u16_value(data, 2);
+			uint16_t value   = get_u16_value(data, 4);
+#if defined(DEBUG_OUTPUT) && (DEBUG_OUTPUT > 1)
+			printf("   WRITE_COIL_MULTI: %04x count %04x\n", address, value);
+#endif
+		}
 		break;
 		
 	case FUNCTION_WRITE_HOLDING_MULTI:
 		// AH AL CH CL SZ DATA
+		{
+			uint16_t address = get_u16_value(data, 2);
+			uint16_t value   = get_u16_value(data, 4);
+#if defined(DEBUG_OUTPUT) && (DEBUG_OUTPUT > 1)
+			printf("   WRITE_HOLDING_MULTI: %04x count %04x\n", address, value);
+#endif
+		}
 		break;
 		
 	case FUNCTION_REPORT_SLAVE_ID:
