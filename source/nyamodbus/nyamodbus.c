@@ -43,6 +43,55 @@ void nyamodbus_reset(str_nyamodbus_device * device)
 	device->state->buffer.size = NYAMODBUS_BUFFER_SIZE;
 }
 
+// Swap bytes in u16 value
+static uint16_t swap16(uint16_t val) {
+  return ((val & 0xFF) << 8) | ((val >> 8) & 0xFF);
+}
+
+// Calc crc16
+//   data: packet data
+//   size: packet size without crc
+// return: crc16
+static uint16_t nyamodbus_crc(const uint8_t *data, uint8_t size)
+{
+	uint16_t crc = 0xFFFF;
+	uint8_t i = 0;
+	uint8_t bit = 0;
+
+	for(i = 0; i < size; i++)
+	{
+		crc ^= data[i];
+
+		for(bit = 0; bit < 8; bit++)
+		{
+			if( crc & 0x0001 )
+			{
+				crc >>= 1;
+				crc ^= 0xA001;
+			}
+			else
+			{
+				crc >>= 1;
+			}
+		}
+	}
+
+	return swap16(crc);
+}
+
+// Send packet
+// data: data without crc [crc will be appended to this buffer!]
+// size: data size
+static void nyamodbus_send_packet(str_nyamodbus_device * device, uint8_t * data, uint8_t size)
+{
+	uint16_t crc = nyamodbus_crc(data, size);
+	
+	data[size] = (crc >> 8) & 0xFF;
+	data[size + 1] = crc & 0xFF;
+	
+	device->config->send(data, size + 2);
+}
+
 // Detect step by function code
 // function: code
 //   return: step
@@ -89,42 +138,6 @@ static void nyamodbus_decide_steps(str_nyamodbus_device * device, enum_modbus_fu
 	}
 }
 
-// Swap bytes in u16 value
-static uint16_t swap16(uint16_t val) {
-  return ((val & 0xFF) << 8) | ((val >> 8) & 0xFF);
-}
-
-// Calc crc16
-//   data: packet data
-//   size: packet size without crc
-// return: crc16
-static uint16_t nyamodbus_crc(const uint8_t *data, uint8_t size)
-{
-	uint16_t crc = 0xFFFF;
-	uint8_t i = 0;
-	uint8_t bit = 0;
-
-	for(i = 0; i < size; i++)
-	{
-		crc ^= data[i];
-
-		for(bit = 0; bit < 8; bit++)
-		{
-			if( crc & 0x0001 )
-			{
-				crc >>= 1;
-				crc ^= 0xA001;
-			}
-			else
-			{
-				crc >>= 1;
-			}
-		}
-	}
-
-	return crc;
-}
-
 // Get u16 value from packet
 //   data: packet data
 // offset: offset
@@ -140,7 +153,7 @@ static uint16_t get_u16_value(const uint8_t * data, uint8_t offset)
 // return: true, if correct
 static bool nyamodbus_checkcrc(const uint8_t * data, uint8_t size)
 {
-	uint16_t calc_crc = swap16(nyamodbus_crc(data, size - 2));
+	uint16_t calc_crc = nyamodbus_crc(data, size - 2);
 	uint16_t exists_crc = get_u16_value(data, size - 2);
 	
 #if defined(DEBUG_OUTPUT) && (DEBUG_OUTPUT > 1)
@@ -155,6 +168,7 @@ static bool nyamodbus_checkcrc(const uint8_t * data, uint8_t size)
 // return: true, if correct
 static enum_nyamodbus_error nyamodbus_process(const uint8_t * data, uint8_t size, bool broadcast)
 {
+	bool processed = false;
 	enum_modbus_function_code func = (enum_modbus_function_code)data[1];
 	switch(func)
 	{
@@ -260,12 +274,27 @@ static enum_nyamodbus_error nyamodbus_process(const uint8_t * data, uint8_t size
 		break;
 	}
 	
-	return ERROR_OK;
+	return processed ? ERROR_OK : ERROR_NO_FUNCTION;
+}
+
+// Send error packet
+//   device: device context
+// function: function code
+//    error: error code
+static void nyamodbus_send_error(str_nyamodbus_device * device, uint8_t function, enum_nyamodbus_error error)
+{
+	uint8_t buffer[10];
+	
+	buffer[0] = *device->config->address;
+	buffer[1] = function | 0x80;
+	buffer[2] = (uint8_t)error;
+	
+	nyamodbus_send_packet(device, buffer, 3);
 }
 
 // Process byte
 // device: device context
-// byte: received byte
+//   byte: received byte
 static void nyamodbus_processbyte(str_nyamodbus_device * device, uint8_t byte)
 {
 	str_nyamodbus_buffer * buffer = &device->state->buffer;
@@ -376,7 +405,7 @@ static void nyamodbus_processbyte(str_nyamodbus_device * device, uint8_t byte)
 					if((error != ERROR_OK) && !broadcast)
 					{
 						// Send error packet
-						
+						nyamodbus_send_error(device, buffer->data[1], error);
 					}
 				}
 			}
