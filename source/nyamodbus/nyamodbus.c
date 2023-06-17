@@ -80,16 +80,18 @@ static uint16_t nyamodbus_crc(const uint8_t *data, uint8_t size)
 }
 
 // Send packet
-// data: data without crc [crc will be appended to this buffer!]
+// data: data without crc
 // size: data size
-static void nyamodbus_send_packet(str_nyamodbus_device * device, uint8_t * data, uint8_t size)
+static void nyamodbus_send_packet(str_nyamodbus_device * device, const uint8_t * data, uint8_t size)
 {
 	uint16_t crc = nyamodbus_crc(data, size);
+	uint8_t crcdata[2];
 	
-	data[size] = (crc >> 8) & 0xFF;
-	data[size + 1] = crc & 0xFF;
+	crcdata[0] = (crc >> 8) & 0xFF;
+	crcdata[1] = crc & 0xFF;
 	
-	device->config->send(data, size + 2);
+	device->config->send(data, size);
+	device->config->send(crcdata, sizeof(crcdata));
 }
 
 // Detect step by function code
@@ -163,12 +165,13 @@ static bool nyamodbus_checkcrc(const uint8_t * data, uint8_t size)
 }
 
 // Process packet
+// device: device context
 //   data: packet data
 //   size: packet size include crc
 // return: true, if correct
-static enum_nyamodbus_error nyamodbus_process(const uint8_t * data, uint8_t size, bool broadcast)
+static enum_nyamodbus_error nyamodbus_process(str_nyamodbus_device * device, const uint8_t * data, uint8_t size, bool broadcast)
 {
-	bool processed = false;
+	enum_nyamodbus_error error = ERROR_NO_FUNCTION;
 	enum_modbus_function_code func = (enum_modbus_function_code)data[1];
 	switch(func)
 	{
@@ -202,6 +205,24 @@ static enum_nyamodbus_error nyamodbus_process(const uint8_t * data, uint8_t size
 #if defined(DEBUG_OUTPUT) && (DEBUG_OUTPUT > 1)
 			printf("   READ_HOLDING: %04x-%04x (%d)\n", address, address + count - 1, count);
 #endif
+			if(device->config->readholding)
+			{
+				uint16_t i = 0;
+				for(i = 0; i < count; i++)
+				{
+					uint16_t value = 0;
+					uint16_t reg   = address + i;
+					error = device->config->readholding(reg, &value);
+					
+#if defined(DEBUG_OUTPUT) && (DEBUG_OUTPUT > 1)
+					printf("    REG: %04x = %04x\n", reg, value);
+#endif
+				}
+			}
+#if defined(DEBUG_OUTPUT) && (DEBUG_OUTPUT > 0)
+			else
+				puts("    No handler: device->config->readholding");
+#endif
 		}
 		break;
 		
@@ -212,6 +233,24 @@ static enum_nyamodbus_error nyamodbus_process(const uint8_t * data, uint8_t size
 			uint16_t count   = get_u16_value(data, 4);
 #if defined(DEBUG_OUTPUT) && (DEBUG_OUTPUT > 1)
 			printf("   READ_INPUTS: %04x-%04x (%d)\n", address, address + count - 1, count);
+#endif
+			if(device->config->readanalog)
+			{
+				uint16_t i = 0;
+				for(i = 0; i < count; i++)
+				{
+					uint16_t value = 0;
+					uint16_t reg   = address + i;
+					error = device->config->readanalog(reg, &value);
+					
+#if defined(DEBUG_OUTPUT) && (DEBUG_OUTPUT > 1)
+					printf("    REG: %04x = %04x\n", reg, value);
+#endif
+				}
+			}
+#if defined(DEBUG_OUTPUT) && (DEBUG_OUTPUT > 0)
+			else
+				puts("    No handler: device->config->readanalog");
 #endif
 		}
 		break;
@@ -224,6 +263,18 @@ static enum_nyamodbus_error nyamodbus_process(const uint8_t * data, uint8_t size
 #if defined(DEBUG_OUTPUT) && (DEBUG_OUTPUT > 1)
 			printf("   WRITE_COIL: %04x = %04x\n", address, value);
 #endif
+
+			if(device->config->writecoil)
+			{
+				error = device->config->writecoil(address, (value & 0x01) != 0);
+				
+				if(error == ERROR_OK)
+					nyamodbus_send_packet(device, data, 6);
+			}
+#if defined(DEBUG_OUTPUT) && (DEBUG_OUTPUT > 0)
+			else
+				puts("    No handler: device->config->writecoil");
+#endif
 		}
 		break;
 		
@@ -233,7 +284,18 @@ static enum_nyamodbus_error nyamodbus_process(const uint8_t * data, uint8_t size
 			uint16_t address = get_u16_value(data, 2);
 			uint16_t value   = get_u16_value(data, 4);
 #if defined(DEBUG_OUTPUT) && (DEBUG_OUTPUT > 1)
-			printf("   WRITE_HOLDING: %04x = %04x\n", address, value);
+			printf("   WRITE_HOLDING: REG %04x = %04x\n", address, value);
+#endif
+			if(device->config->writeholding)
+			{
+				error = device->config->writeholding(address, value);
+				
+				if(error == ERROR_OK)
+					nyamodbus_send_packet(device, data, 6);
+			}
+#if defined(DEBUG_OUTPUT) && (DEBUG_OUTPUT > 0)
+			else
+				puts("    No handler: device->config->writeholding");
 #endif
 		}
 		break;
@@ -249,9 +311,42 @@ static enum_nyamodbus_error nyamodbus_process(const uint8_t * data, uint8_t size
 		// AH AL CH CL SZ DATA
 		{
 			uint16_t address = get_u16_value(data, 2);
-			uint16_t value   = get_u16_value(data, 4);
+			uint16_t count   = get_u16_value(data, 4);
+			uint8_t bytes    = data[6];
 #if defined(DEBUG_OUTPUT) && (DEBUG_OUTPUT > 1)
-			printf("   WRITE_COIL_MULTI: %04x count %04x\n", address, value);
+			printf("   WRITE_COIL_MULTI: %04x count %04x (%d bytes data)\n", address, count, bytes);
+#endif
+			if(bytes * 8 >= count)
+			{
+				if(device->config->writecoil)
+				{
+					uint16_t i = 0;
+					for(i = 0; i < count; i++)
+					{
+						uint8_t  offset = 7 + (i / 16) * 2;
+						uint8_t  bit  = (i % 0x10);
+						uint16_t mask = get_u16_value(data, offset);
+						uint16_t reg  = address + i;
+						bool value = (mask & (1 << bit)) != 0;
+						
+#if defined(DEBUG_OUTPUT) && (DEBUG_OUTPUT > 0)
+						printf("    REG %04x = %d\n", reg, value ? 1 : 0);
+#endif
+						error = device->config->writecoil(reg, value);
+						if(error != ERROR_OK)
+							break;
+					}
+				}
+#if defined(DEBUG_OUTPUT) && (DEBUG_OUTPUT > 0)
+				else
+					puts("    No handler: device->config->writecoil");
+#endif
+			}
+#if defined(DEBUG_OUTPUT) && (DEBUG_OUTPUT > 0)
+			else
+			{
+				puts("    Invalid count/size");
+			}
 #endif
 		}
 		break;
@@ -260,9 +355,37 @@ static enum_nyamodbus_error nyamodbus_process(const uint8_t * data, uint8_t size
 		// AH AL CH CL SZ DATA
 		{
 			uint16_t address = get_u16_value(data, 2);
-			uint16_t value   = get_u16_value(data, 4);
+			uint16_t count   = get_u16_value(data, 4);
+			uint8_t bytes    = data[6];
 #if defined(DEBUG_OUTPUT) && (DEBUG_OUTPUT > 1)
-			printf("   WRITE_HOLDING_MULTI: %04x count %04x\n", address, value);
+			printf("   WRITE_HOLDING_MULTI: %04x count %04x  (%d bytes data)\n", address, count, bytes);
+#endif
+			if(bytes == count * 2)
+			{
+				if(device->config->writeholding)
+				{
+					uint16_t i = 0;
+					for(i = 0; i < count; i++)
+					{
+						uint16_t value = get_u16_value(data, 7 + i * 2);
+						uint16_t reg   = address + i;
+						
+						printf("    REG %04x = %04x\n", reg, value);
+						error = device->config->writeholding(reg, value);
+						if(error != ERROR_OK)
+							break;
+					}
+				}
+#if defined(DEBUG_OUTPUT) && (DEBUG_OUTPUT > 0)
+				else
+					puts("    No handler: device->config->writeholding");
+#endif
+			}
+#if defined(DEBUG_OUTPUT) && (DEBUG_OUTPUT > 0)
+			else
+			{
+				puts("    Invalid count/size");
+			}
 #endif
 		}
 		break;
@@ -274,7 +397,7 @@ static enum_nyamodbus_error nyamodbus_process(const uint8_t * data, uint8_t size
 		break;
 	}
 	
-	return processed ? ERROR_OK : ERROR_NO_FUNCTION;
+	return error;
 }
 
 // Send error packet
@@ -401,7 +524,7 @@ static void nyamodbus_processbyte(str_nyamodbus_device * device, uint8_t byte)
 #if defined(DEBUG_OUTPUT) && (DEBUG_OUTPUT > 2)
 					printf("  Slave ok: %02x\n", slave);
 #endif
-					enum_nyamodbus_error error = nyamodbus_process(buffer->data, buffer->expected, broadcast);
+					enum_nyamodbus_error error = nyamodbus_process(device, buffer->data, buffer->expected, broadcast);
 					if((error != ERROR_OK) && !broadcast)
 					{
 						// Send error packet

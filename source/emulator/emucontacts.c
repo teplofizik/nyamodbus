@@ -18,7 +18,7 @@ static const str_nyamodbus_config config = {
 	.readcontacts   = 0,
 	.readanalog     = 0,
 	.readcoils      = 0,
-	.writecoils     = 0,
+	.writecoil      = 0,
 	.readholding    = 0,
 	.writeholding   = 0,
 };

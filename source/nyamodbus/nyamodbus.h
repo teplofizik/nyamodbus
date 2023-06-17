@@ -88,11 +88,11 @@
 	// return: error code
 	typedef enum_nyamodbus_error (*nyamb_readcoils)(uint16_t id, bool * status);
 
-	// Write coils
+	// Write coil
 	//     id: index of coil
 	// status: coil status 
 	// return: error code
-	typedef enum_nyamodbus_error (*nyamb_writecoils)(uint16_t id, bool status);
+	typedef enum_nyamodbus_error (*nyamb_writecoil)(uint16_t id, bool status);
 
 	// Read holding register
 	//     id: index of register
@@ -137,7 +137,7 @@
 		nyamb_readcoils      readcoils;
 		
 		// Write coil status
-		nyamb_writecoils     writecoils;
+		nyamb_writecoil      writecoil;
 		
 		// Read holding register
 		nyamb_readholding    readholding;
