@@ -1,5 +1,5 @@
 //
-// Nyamodbus library v1.0.0
+// Nyamodbus library v1.1.0
 //
 
 #include <stdint.h>
@@ -103,38 +103,15 @@
 	//  return: pointer to id string or 0
 	typedef const char * (*nyamb_readdeviceinfo)(uint8_t object);
 
-	// Driver configuration
-	typedef struct {
-		// Pointer to slave address
-		uint8_t *            address;
-		
-		// Send function
-		nyamb_send           send;
-		
-		// Receive function
-		nyamb_receive        receive;
-		
-		// Read device information
-		nyamb_readdeviceinfo readdeviceinfo;
-		
-		// Read contacts
-		nyamb_readdigital    readcontacts;
-		
-		// Read analog inputs
-		nyamb_readanalog     readanalog;
-		
-		// Read coil status
-		nyamb_readdigital    readcoils;
-		
-		// Write coil status
-		nyamb_writecoil      writecoil;
-		
-		// Read holding register
-		nyamb_readanalog     readholding;
-		
-		// Write holding register
-		nyamb_writeholding   writeholding;
-	} str_nyamodbus_config;
+	// Prototype of function to parse modbus packet
+	// context: device context
+	//    data: data
+	//    size: size of data
+	typedef void (*nyamb_on_valid_packet)(void * context, const uint8_t * data, uint16_t size);
+	
+	// Prototype of function to process invalid packet
+	// context: device context
+	typedef void (*nyamb_on_invalid_packet)(void * context);
 	
 	// Buffer
 	typedef struct {
@@ -146,6 +123,23 @@
 		uint16_t added;     // added index
 	} str_nyamodbus_buffer;
 	
+	typedef struct {
+		// Send function
+		nyamb_send           send;
+		
+		// Receive function
+		nyamb_receive        receive;
+	} str_modbus_io;
+	
+	// Driver state
+	typedef struct {
+        // Parse valid packet
+		nyamb_on_valid_packet   on_valid_packet;
+		
+		// Received invalid packet
+        nyamb_on_invalid_packet on_invalid_packet;
+    } str_nyamodbus_driver;
+    
 	// Driver state
 	typedef struct {
 		// Parse step
@@ -166,20 +160,34 @@
 	
 	// Modbus driver config and state
 	typedef struct {
-		const str_nyamodbus_config * config;
+		// Modbus IO functions
+		const str_modbus_io        * io;
+		// Modbus buffers for packet receiving
 		str_nyamodbus_state        * state;
 	}
 	str_nyamodbus_device;
 
 	// Init modbus state
 	// device: device context
-	void nyamodbus_init(str_nyamodbus_device * device);
+	void nyamodbus_init(const str_nyamodbus_device * device);
 
 	// Main processing cycle
 	// device: device context
-	void nyamodbus_main(str_nyamodbus_device * device);
+	void nyamodbus_main(const str_nyamodbus_device * device);
 	
+	// Send packet
+	// device: device context
+	//   data: data without crc
+	//   size: data size
+	void nyamodbus_send_packet(const str_nyamodbus_device * device, const uint8_t * data, uint8_t size);
+
+	// Trigger modbus timeout (parse received data)
+	//  device: device context
+	//  driver: functions to process packets
+	// context: driver context
+	void nyamodbus_timeout(const str_nyamodbus_device * device, const str_nyamodbus_driver * driver, void * context);
+
 	// Reset modbus state
-	void nyamodbus_reset(str_nyamodbus_device * device);
+	void nyamodbus_reset(const str_nyamodbus_device * device);
 
 #endif // _NYAMODBUS_H

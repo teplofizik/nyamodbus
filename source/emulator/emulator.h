@@ -9,6 +9,7 @@
 #define _EMULATOR_H
 
 	#include <nyamodbus/nyamodbus.h>
+	#include <nyamodbus/nyamodbus_slave.h>
 
 #ifdef EMULATOR_INTERNAL
 
@@ -28,7 +29,7 @@
 
 	// Start device emulation
 	// device: device info
-	void emu_start(str_nyamodbus_device * device);
+	void emu_start(const str_nyamodbus_slave_device * device);
 
 	// Stop device emulation
 	void emu_stop();
@@ -40,6 +41,6 @@
 	void emu_send(const uint8_t * data, uint8_t size);
 
 	// Contacts test
-	extern str_nyamodbus_device emucontacts;
+	extern const str_nyamodbus_slave_device emucontacts;
 
 #endif

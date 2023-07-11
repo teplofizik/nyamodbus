@@ -16,25 +16,25 @@ uint8_t buffer_index = 0;
 uint8_t buffer_size = 0;
 
 // Emulator device
-static str_nyamodbus_device * emu_device = 0;
+static const str_nyamodbus_slave_device * emu_device = 0;
 
 // Thread control
-static pthread_t              emu_thread_id;
+static pthread_t                          emu_thread_id;
 
-// Thread mutex
-static pthread_mutex_t        emu_data_mutex;
+// Thread mutex                         
+static pthread_mutex_t                    emu_data_mutex;
 
-// Is emulator runnung
-static bool                   emu_running = false;
+// Is emulator runnung                  
+static bool                               emu_running = false;
 
 // Main emulator processing thread
 static void * emu_thread(void * args)
 {
 	puts("Emulator is started");
-	nyamodbus_init(emu_device);
+	nyamodbus_slave_init(emu_device);
 	while(emu_running)
 	{
-		nyamodbus_main(emu_device);
+		nyamodbus_slave_main(emu_device);
 		usleep(10000);
 	}
 	
@@ -44,7 +44,7 @@ static void * emu_thread(void * args)
 
 // Start device emulation
 // device: device info
-void emu_start(str_nyamodbus_device * device)
+void emu_start(const str_nyamodbus_slave_device * device)
 {
 	if(!emu_running)
 	{
@@ -76,17 +76,22 @@ bool emu_is_tx_busy(void)
 	return busy;
 }
 
+// Wait tx to free
+static void remu_wait(void)
+{
+	while(emu_is_tx_busy())
+	{
+		usleep(1000);
+	}
+}
+
 // Send data to emulator
 //   data: data to send
 //   size: size of data
 // return: true, if ok
 void emu_send(const uint8_t * data, uint8_t size)
 {
-	while(emu_is_tx_busy())
-	{
-		usleep(10000);
-	}
-	
+	remu_wait();
 	if(size <= sizeof(buffer))
 	{
 		pthread_mutex_lock(&emu_data_mutex);
@@ -99,6 +104,9 @@ void emu_send(const uint8_t * data, uint8_t size)
 	{
 		printf("Message is too big for internal buffer: %u > %lu\n", size, sizeof(buffer));
 	}
+	
+	remu_wait();
+	nyamodbus_slave_timeout(emu_device);
 	// else todo
 }
 

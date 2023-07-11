@@ -45,10 +45,20 @@ const char * emu_readdeviceinfo(uint8_t object)
 static uint8_t slave_address = 0x11;
 static str_nyamodbus_state state;
 
-static const str_nyamodbus_config config = {
-	.address        = &slave_address,
+static const str_modbus_io io = {
 	.send           = emu_send_internal,
-	.receive        = emu_receive_internal,
+	.receive        = emu_receive_internal
+};
+
+// Modbus slave state
+static const str_nyamodbus_device modbus_slave = {
+	.io =    &io,
+	.state = &state
+};
+
+const str_nyamodbus_slave_device emucontacts = {
+	.device         = &modbus_slave,
+	.address        = &slave_address,
 	.readdeviceinfo = emu_readdeviceinfo,
 	.readcontacts   = read_contacts,
 	.readanalog     = 0,
@@ -56,9 +66,4 @@ static const str_nyamodbus_config config = {
 	.writecoil      = 0,
 	.readholding    = 0,
 	.writeholding   = 0,
-};
-
-str_nyamodbus_device emucontacts = {
-	.config = &config,
-	.state = &state
 };
