@@ -3,6 +3,8 @@
 //
 
 #include "nyamodbus_utils.h"
+#include <stddef.h>
+#include <sys/time.h>
 
 // Get u16 value from packet
 //   data: packet data
@@ -26,4 +28,13 @@ void set_u16_value(uint8_t * data, uint8_t offset, uint16_t value)
 uint16_t swap_u16(uint16_t val)
 {
   return ((val & 0xFF) << 8) | ((val >> 8) & 0xFF);
+}
+
+// Get current timestamp
+uint64_t get_timestamp(void)
+{
+    struct timeval tv;
+    gettimeofday(&tv,NULL);
+	
+	return tv.tv_sec*1000000ULL + tv.tv_usec;
 }

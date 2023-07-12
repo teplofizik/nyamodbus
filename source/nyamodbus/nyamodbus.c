@@ -83,6 +83,10 @@ void nyamodbus_send_packet(const str_nyamodbus_device * device, const uint8_t * 
 	uint16_t crc = nyamodbus_crc(data, size);
 	uint8_t result[NYAMODBUS_OUTPUT_BUFFER_SIZE];
 	
+#if defined(DEBUG_OUTPUT) && (DEBUG_OUTPUT > 2)
+	printf(" Send packet with size %d\n", size);
+#endif
+
 	memcpy(result, data, size);
 	set_u16_value(result, size, crc);
 	
@@ -120,7 +124,7 @@ static void nyamodbus_processbyte(const str_nyamodbus_device * device, uint8_t b
 
 // Main processing cycle
 // device: device context
-void nyamodbus_main(const str_nyamodbus_device * device)
+void nyamodbus_main(const str_nyamodbus_device * device, const str_nyamodbus_driver * driver, void * context)
 {
 	uint8_t buffer[100];
 	uint8_t size = sizeof(buffer);
@@ -134,6 +138,10 @@ void nyamodbus_main(const str_nyamodbus_device * device)
 #if defined(DEBUG_OUTPUT) && (DEBUG_OUTPUT > 0)
 			printf("Readed %d bytes\n", size);
 #endif
+
+			if(driver->on_data)
+				driver->on_data(context);
+
 			for(i = 0; i < size; i++)
 			{
 				nyamodbus_processbyte(device, buffer[i]);
@@ -169,3 +177,40 @@ void nyamodbus_timeout(const str_nyamodbus_device * device, const str_nyamodbus_
 	nyamodbus_reset(device);
 }
 
+// Tick modbus timer
+//  device: device context
+//  driver: functions to process packets
+// context: driver context
+//   usecs: useconds after last call
+void nyamodbus_tick(const str_nyamodbus_device * device, const str_nyamodbus_driver * driver, void * context, uint32_t usecs)
+{
+	if (device->state->busy)
+	{
+		device->state->elapsed_us += usecs;
+		
+		if(device->state->elapsed_us >= NYAMODBUS_PACKET_WAIT_TIMEOUT)
+		{
+			nyamodbus_timeout(device, driver, context);
+			
+			device->state->busy = false;
+		}
+	}
+}
+
+// Start timer
+// device: device context
+void nyamodbus_start_timeout(const str_nyamodbus_device * device)
+{
+	device->state->busy = true;
+	device->state->elapsed_us = 0;
+}
+
+// Reset modbus timeout (while receiving data)
+// device: device context
+void nyamodbus_reset_timeout(const str_nyamodbus_device * device)
+{
+	if (device->state->busy)
+	{
+		device->state->elapsed_us = 0;
+	}
+}

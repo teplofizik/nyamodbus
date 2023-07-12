@@ -9,10 +9,13 @@
 
 static void nyamodbus_slave_on_valid_packet(void * context, const uint8_t * data, uint16_t size);
 static void nyamodbus_slave_on_invalid_packet(void * context);
+static void nyamodbus_slave_on_data(void * context);
 
 const str_nyamodbus_driver slave_driver = {
+	.on_data            = nyamodbus_slave_on_data,
 	.on_valid_packet    = nyamodbus_slave_on_valid_packet,
-	.on_invalid_packet  = nyamodbus_slave_on_invalid_packet
+	.on_invalid_packet  = nyamodbus_slave_on_invalid_packet,
+	.on_timeout         = 0
 };
 
 // Send error packet
@@ -413,6 +416,15 @@ static enum_nyamodbus_error nyamodbus_slave_process(const str_nyamodbus_slave_de
 	return error;
 }
 
+// Any data received
+static void nyamodbus_slave_on_data(void * context)
+{
+	str_nyamodbus_slave_device * device = (str_nyamodbus_slave_device *)context;
+	
+	nyamodbus_start_timeout(device->device);
+	nyamodbus_reset_timeout(device->device);
+}
+
 // Function to parse modbus packet
 //   data: data
 //   size: size of data
@@ -437,6 +449,7 @@ static void nyamodbus_slave_on_valid_packet(void * context, const uint8_t * data
 	}
 }
 
+// Invalid packet
 static void nyamodbus_slave_on_invalid_packet(void * context)
 {
 	
@@ -453,13 +466,22 @@ void nyamodbus_slave_init(const str_nyamodbus_slave_device * device)
 // device: device context
 void nyamodbus_slave_main(const str_nyamodbus_slave_device * device)
 {
-	nyamodbus_main(device->device);
+	nyamodbus_main(device->device, &slave_driver, (void*)device);
 }
 
 // Trigger modbus timeout (parse received data)
 void nyamodbus_slave_timeout(const str_nyamodbus_slave_device * device)
 {
 	nyamodbus_timeout(device->device, &slave_driver, (void *)device);
+}
+
+// Trigger modbus timeout (parse received data)
+//  device: device context
+//   usecs: useconds after last call
+// context: driver context
+void nyamodbus_slave_tick(const str_nyamodbus_slave_device * device, uint32_t usecs)
+{
+	nyamodbus_tick(device->device, &slave_driver, (void*)device, usecs);
 }
 
 // Reset modbus state

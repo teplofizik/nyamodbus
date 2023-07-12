@@ -13,17 +13,29 @@
 
 #ifdef EMULATOR_INTERNAL
 
-	// Receive emulator modbus data
+	// Receive slave emulator modbus data
 	//   data: data to read
 	//   size: size of buffer, size of readed data if result is true
 	// return: true, if ok
-	bool emu_receive_internal(uint8_t * data, uint8_t * size);
+	bool emu_slave_receive(uint8_t * data, uint8_t * size);
 
-	// Send emulator modbus data
+	// Send slave emulator modbus data
 	//   data: data to send
 	//   size: size of data
 	// return: true, if ok
-	bool emu_send_internal(const uint8_t * data, uint8_t size);
+	bool emu_slave_send(const uint8_t * data, uint8_t size);
+	
+	// Receive master emulator modbus data
+	//   data: data to read
+	//   size: size of buffer, size of readed data if result is true
+	// return: true, if ok
+	bool emu_master_receive(uint8_t * data, uint8_t * size);
+
+	// Send master emulator modbus data
+	//   data: data to send
+	//   size: size of data
+	// return: true, if ok
+	bool emu_master_send(const uint8_t * data, uint8_t size);
 	
 #endif
 

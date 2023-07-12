@@ -51,6 +51,12 @@
 	// Trigger modbus timeout (parse received data)
 	void nyamodbus_slave_timeout(const str_nyamodbus_slave_device * device);
 
+	// Trigger modbus timeout (parse received data)
+	//  device: device context
+	//   usecs: useconds after last call
+	// context: driver context
+	void nyamodbus_slave_tick(const str_nyamodbus_slave_device * device, uint32_t usecs);
+
 	// Reset modbus state
 	void nyamodbus_slave_reset(const str_nyamodbus_slave_device * device);
 

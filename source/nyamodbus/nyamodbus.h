@@ -9,13 +9,16 @@
 #define _NYAMODBUS_H
 
 	// Debug mode (0-3)
-	#define DEBUG_OUTPUT                 3
+	#define DEBUG_OUTPUT                  3
 
 	// Receive buffer size
-	#define NYAMODBUS_BUFFER_SIZE        128
+	#define NYAMODBUS_BUFFER_SIZE         128
 
 	// Send buffer size
-	#define NYAMODBUS_OUTPUT_BUFFER_SIZE 128
+	#define NYAMODBUS_OUTPUT_BUFFER_SIZE  128
+
+	// Usecs to wait answer
+	#define NYAMODBUS_PACKET_WAIT_TIMEOUT 1500
 
 	// Parse step
 	typedef enum {
@@ -59,7 +62,9 @@
 		ERROR_LONG_ACTION     = 5, // The slave has accepted the request and processes it, but it takes a long time. This response prevents the host from generating a timeout error.
 		ERROR_BUSY            = 6, // The slave is busy processing the command. The master must repeat the message later when the slave is freed.
 		ERROR_NEED_DIAGNOSTIC = 7, // The slave can not execute the program function specified in the request. This code is returned for an unsuccessful program request using functions with numbers 13 or 14. The master must request diagnostic information or error information from the slave.
-		ERROR_PARITY          = 8  // The slave detected a parity error when reading the extended memory. The master can repeat the request, but usually in such cases, repairs are required.
+		ERROR_PARITY          = 8, // The slave detected a parity error when reading the extended memory. The master can repeat the request, but usually in such cases, repairs are required.
+		
+		ERROR_TIMEOUT         = 100, // Timeout error
 	} enum_nyamodbus_error;
 
 	// Prototype of function to send modbus data
@@ -109,9 +114,9 @@
 	//    size: size of data
 	typedef void (*nyamb_on_valid_packet)(void * context, const uint8_t * data, uint16_t size);
 	
-	// Prototype of function to process invalid packet
+	// Prototype of function to driver event
 	// context: device context
-	typedef void (*nyamb_on_invalid_packet)(void * context);
+	typedef void (*nyamb_driver_event)(void * context);
 	
 	// Buffer
 	typedef struct {
@@ -137,7 +142,13 @@
 		nyamb_on_valid_packet   on_valid_packet;
 		
 		// Received invalid packet
-        nyamb_on_invalid_packet on_invalid_packet;
+        nyamb_driver_event      on_invalid_packet;
+		
+		// Received invalid packet
+        nyamb_driver_event      on_timeout;
+		
+		// Any data are received
+		nyamb_driver_event      on_data;
     } str_nyamodbus_driver;
     
 	// Driver state
@@ -153,6 +164,12 @@
 		
 		// custom request size
 		uint8_t                   custom_header_size;
+		
+		// Time after last data
+		uint32_t                  elapsed_us;
+		
+		// Is master busy
+		bool                      busy;
 		
 		// rx buffer
 		str_nyamodbus_buffer      buffer;
@@ -172,8 +189,10 @@
 	void nyamodbus_init(const str_nyamodbus_device * device);
 
 	// Main processing cycle
+	//  driver: functions to process packets
+	// context: driver context
 	// device: device context
-	void nyamodbus_main(const str_nyamodbus_device * device);
+	void nyamodbus_main(const str_nyamodbus_device * device, const str_nyamodbus_driver * driver, void * context);
 	
 	// Send packet
 	// device: device context
@@ -189,5 +208,20 @@
 
 	// Reset modbus state
 	void nyamodbus_reset(const str_nyamodbus_device * device);
+
+	// Start timer
+	// device: device context
+	void nyamodbus_start_timeout(const str_nyamodbus_device * device);
+
+	// Reset modbus timeout (while receiving data)
+	// device: device context
+	void nyamodbus_reset_timeout(const str_nyamodbus_device * device);
+
+	// Tick modbus timer
+	//  device: device context
+	//  driver: functions to process packets
+	// context: driver context
+	//   usecs: useconds after last call
+	void nyamodbus_tick(const str_nyamodbus_device * device, const str_nyamodbus_driver * driver, void * context, uint32_t usecs);
 
 #endif // _NYAMODBUS_H

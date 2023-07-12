@@ -22,4 +22,7 @@
 	// Swap bytes in u16 value
 	uint16_t swap_u16(uint16_t val);
 
+	// Get current timestamp
+	uint64_t get_timestamp(void);
+
 #endif

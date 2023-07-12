@@ -46,8 +46,8 @@ static uint8_t slave_address = 0x11;
 static str_nyamodbus_state state;
 
 static const str_modbus_io io = {
-	.send           = emu_send_internal,
-	.receive        = emu_receive_internal
+	.send           = emu_slave_send,
+	.receive        = emu_slave_receive
 };
 
 // Modbus slave state

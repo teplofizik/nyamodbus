@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <emulator/emulator.h>
+#include <emulator/emumaster.h>
 
 // Read coils command
 void read_coils(void)
@@ -69,6 +70,7 @@ int main(int argc, char *argv[])
 {
 	int i;
 	
+	master_start();
 	emu_start(&emucontacts);
 	usleep(10000);
 	read_coils();
@@ -82,6 +84,7 @@ int main(int argc, char *argv[])
 	read_devid();
 	usleep(30000);
 	emu_stop();
+	master_stop();
 	
 	return 0;
 }
