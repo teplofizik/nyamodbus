@@ -173,6 +173,11 @@ void nyamodbus_timeout(const str_nyamodbus_device * device, const str_nyamodbus_
 				driver->on_invalid_packet(context);
 		}
 	}
+	else
+	{
+		if(driver->on_timeout)
+			driver->on_timeout(context);
+	}
 	
 	nyamodbus_reset(device);
 }

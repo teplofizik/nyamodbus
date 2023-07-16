@@ -16,12 +16,16 @@
 	// Analog read (holding, input)
 	typedef void (*nyam_master_analog_read)(uint8_t slave, uint16_t index, uint16_t value);
 	
-	// Device id
+	// Device info respinse handler
 	// index: index of string
 	//  info: information string
 	typedef void (*nyam_master_device_info)(uint8_t slave, uint8_t index, const char * info);
 	
-	// Error code
+	// Valid response handler
+	// return: true, if processing completed
+	typedef bool (*nyam_response)(uint8_t slave, const uint8_t * data, uint16_t size);
+	
+	// Error code handler
 	typedef void (*nyam_request_error)(uint8_t slave,enum_nyamodbus_error error);
 	
 	// Master state
@@ -29,6 +33,8 @@
 	{
 		// Send buffer
 		uint8_t    command[NYAMODBUS_OUTPUT_BUFFER_SIZE];
+		// Send buffer size
+		uint8_t    size;
 	} str_nyamodbus_master_state;
 	
 	// Master device context
@@ -39,6 +45,9 @@
 		
 		// Pointer to modbus master state
 		str_nyamodbus_master_state * state;
+		
+		// Respone received
+		nyam_response                on_response;
 		
 		// Error code
 		nyam_request_error           on_error;

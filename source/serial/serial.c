@@ -9,6 +9,7 @@
 #include <pthread.h>
 #include <sys/ioctl.h>
 #include <sys/types.h>
+#include <sys/time.h>
 #include <unistd.h>
 #include <nyamodbus/nyamodbus_utils.h>
 
@@ -40,6 +41,15 @@ static const str_nyamodbus_master_device * serial_device = 0;
 
 // Thread control
 static pthread_t                           serial_thread_id;
+
+// Get current timestamp
+uint64_t get_timestamp(void)
+{
+    struct timeval tv;
+    gettimeofday(&tv,NULL);
+	
+	return tv.tv_sec*1000000ULL + tv.tv_usec;
+}
 
 int get_unreaded_bytes(void)
 {

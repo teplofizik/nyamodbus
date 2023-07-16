@@ -10,6 +10,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <sys/time.h>
 
 typedef struct
 {
@@ -35,6 +36,15 @@ static pthread_mutex_t                    emu_data_mutex;
 
 // Is emulator runnung                  
 static bool                               emu_running = false;
+
+// Get current timestamp
+uint64_t get_timestamp(void)
+{
+    struct timeval tv;
+    gettimeofday(&tv,NULL);
+	
+	return tv.tv_sec*1000000ULL + tv.tv_usec;
+}
 
 // Reset buffer to default state
 static void buffer_reset(str_emu_buffer * buffer)

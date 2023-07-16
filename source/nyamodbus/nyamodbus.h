@@ -18,7 +18,7 @@
 	#define NYAMODBUS_OUTPUT_BUFFER_SIZE  128
 
 	// Usecs to wait answer
-	#define NYAMODBUS_PACKET_WAIT_TIMEOUT 1500
+	#define NYAMODBUS_PACKET_WAIT_TIMEOUT 4500
 
 	// Parse step
 	typedef enum {

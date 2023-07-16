@@ -39,6 +39,9 @@
 	
 #endif
 
+	// Get current timestamp
+	uint64_t get_timestamp(void);
+
 	// Start device emulation
 	// device: device info
 	void emu_start(const str_nyamodbus_slave_device * device);
