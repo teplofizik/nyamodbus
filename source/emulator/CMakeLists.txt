@@ -2,8 +2,9 @@ cmake_minimum_required(VERSION 3.10)
 project(emulator C)
 
 set(SOURCES emucontacts.c
+            emuholding.c
             emulator.c
-			emumaster.c)
+            emumaster.c)
 set(HEADERS emulator.h
             emumaster.h)
 

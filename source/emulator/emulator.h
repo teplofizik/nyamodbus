@@ -57,5 +57,6 @@
 
 	// Contacts test
 	extern const str_nyamodbus_slave_device emucontacts;
-
+	// Holding test
+	extern const str_nyamodbus_slave_device emuholding;
 #endif
