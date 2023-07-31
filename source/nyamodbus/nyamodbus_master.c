@@ -38,11 +38,11 @@ void nyamodbus_master_init(const str_nyamodbus_master_device * device)
 }
 
 // Parse "read contacts" response
-//        device: 
-//  request_data: 
-//  request_size: 
-// response_data: 
-// response_size: 
+//        device: device context
+//  request_data: request data
+//  request_size: request data size
+// response_data: response data
+// response_size: response data size
 static void nyamodbus_master_parse_read_contacts(str_nyamodbus_master_device * device, const uint8_t * request_data, uint16_t request_size, const uint8_t * response_data, uint16_t response_size)
 {
 	// Check request info...
@@ -63,6 +63,92 @@ static void nyamodbus_master_parse_read_contacts(str_nyamodbus_master_device * d
 			
 			bool value = (mask & (1 << bit));
 			device->read_contacts(slave, reg, value);
+		}
+	}
+}
+
+// Parse "read coils" response
+//        device: device context
+//  request_data: request data
+//  request_size: request data size
+// response_data: response data
+// response_size: response data size
+static void nyamodbus_master_parse_read_coils(str_nyamodbus_master_device * device, const uint8_t * request_data, uint16_t request_size, const uint8_t * response_data, uint16_t response_size)
+{
+	// Check request info...
+	uint16_t address = get_u16_value(request_data, 2);
+	uint16_t count   = get_u16_value(request_data, 4);
+	uint8_t  bytes = (count + 7) / 8;
+	uint8_t  slave = response_data[0];
+	
+	if(bytes == response_data[2]) // expected payload size
+	{
+		int i;
+		for(i = 0; i < count; i++)
+		{
+			uint8_t bit = i & 0x7;
+			uint8_t byte = i / 8;
+			uint16_t reg = address + i;
+			uint8_t mask = response_data[3 + byte];
+			
+			bool value = (mask & (1 << bit));
+			device->read_coils(slave, reg, value);
+		}
+	}
+}
+
+// Parse "read holding" response
+//        device: device context
+//  request_data: request data
+//  request_size: request data size
+// response_data: response data
+// response_size: response data size
+static void nyamodbus_master_parse_read_holding(str_nyamodbus_master_device * device, const uint8_t * request_data, uint16_t request_size, const uint8_t * response_data, uint16_t response_size)
+{
+	// Check request info...
+	uint16_t address = get_u16_value(request_data, 2);
+	uint16_t count   = get_u16_value(request_data, 4);
+	uint8_t  bytes = count * 2;
+	uint8_t  slave = response_data[0];
+	
+	if(bytes == response_data[2]) // expected payload size
+	{
+		int i;
+		for(i = 0; i < count; i++)
+		{
+			uint16_t byte = i * 2ul;
+			uint16_t  reg = address + i;
+			
+			uint16_t value = ((uint16_t)response_data[byte] << 8) | response_data[byte + 1];
+			device->read_holding(slave, reg, value);
+		}
+	}
+}
+
+// Parse "read holding" response
+//        device: device context
+//  request_data: request data
+//  request_size: request data size
+// response_data: response data
+// response_size: response data size
+static void nyamodbus_master_parse_read_inputs(str_nyamodbus_master_device * device, const uint8_t * request_data, uint16_t request_size, const uint8_t * response_data, uint16_t response_size)
+{
+	// Check request info...
+	uint16_t address = get_u16_value(request_data, 2);
+	uint16_t count   = get_u16_value(request_data, 4);
+	uint8_t  bytes = count * 2;
+	uint8_t  slave = response_data[0];
+	
+	if(bytes == response_data[2]) // expected payload size
+	{
+		int i;
+		for(i = 0; i < count; i++)
+		{
+			uint16_t byte = i * 2ul;
+			uint16_t  reg = address + i;
+			
+			uint16_t value = ((uint16_t)response_data[byte] << 8) | response_data[byte + 1];
+			device->read_inputs(slave, reg, value);
 		}
 	}
 }
@@ -103,7 +189,21 @@ static void nyamodbus_master_on_valid_packet(void * context, const uint8_t * dat
 				case FUNCTION_READ_CONTACTS:
 					if(device->read_contacts)
 						nyamodbus_master_parse_read_contacts(device, &device->state->command[0], device->state->size, data, size);
+					break;
 					
+				case FUNCTION_READ_COIL:
+					if(device->read_coils)
+						nyamodbus_master_parse_read_coils(device, &device->state->command[0], device->state->size, data, size);
+					break;
+					
+				case FUNCTION_READ_HOLDING:
+					if(device->read_holding)
+						nyamodbus_master_parse_read_holding(device, &device->state->command[0], device->state->size, data, size);
+					break;
+					
+				case FUNCTION_READ_INPUTS:
+					if(device->read_inputs)
+						nyamodbus_master_parse_read_inputs(device, &device->state->command[0], device->state->size, data, size);
 					break;
 			}
 		}
