@@ -18,7 +18,7 @@
 	#define NYAMODBUS_OUTPUT_BUFFER_SIZE  128
 
 	// Usecs to wait answer
-	#define NYAMODBUS_PACKET_WAIT_TIMEOUT 4500
+	#define NYAMODBUS_PACKET_WAIT_TIMEOUT 2500
 
 	// Parse step
 	typedef enum {
@@ -67,6 +67,9 @@
 		ERROR_TIMEOUT         = 100, // Timeout error
 	} enum_nyamodbus_error;
 
+	// Is device still sending data
+	typedef bool (*nyamb_getstatus)(void);
+	
 	// Prototype of function to send modbus data
 	//   data: data to send
 	//   size: size of data
@@ -134,6 +137,9 @@
 		
 		// Receive function
 		nyamb_receive        receive;
+		
+		// Is sending
+		nyamb_getstatus      is_txbusy;
 	} str_modbus_io;
 	
 	// Driver state

@@ -129,6 +129,12 @@ void nyamodbus_main(const str_nyamodbus_device * device, const str_nyamodbus_dri
 	uint8_t buffer[100];
 	uint8_t size = sizeof(buffer);
 	
+	if(device->io->is_txbusy)
+	{
+		if(device->io->is_txbusy())
+			nyamodbus_reset_timeout(device);
+	}
+	
 	// If something is available to receive...
 	if(device->io->receive && device->io->receive(buffer, &size))
 	{

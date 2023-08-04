@@ -116,7 +116,7 @@ static void nyamodbus_master_parse_read_holding(str_nyamodbus_master_device * de
 		int i;
 		for(i = 0; i < count; i++)
 		{
-			uint16_t byte = i * 2ul;
+			uint16_t byte = 3 + i * 2ul;
 			uint16_t  reg = address + i;
 			
 			uint16_t value = ((uint16_t)response_data[byte] << 8) | response_data[byte + 1];
@@ -144,7 +144,7 @@ static void nyamodbus_master_parse_read_inputs(str_nyamodbus_master_device * dev
 		int i;
 		for(i = 0; i < count; i++)
 		{
-			uint16_t byte = i * 2ul;
+			uint16_t byte = 3 + i * 2ul;
 			uint16_t  reg = address + i;
 			
 			uint16_t value = ((uint16_t)response_data[byte] << 8) | response_data[byte + 1];
