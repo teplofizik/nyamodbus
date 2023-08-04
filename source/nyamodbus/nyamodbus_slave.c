@@ -87,6 +87,51 @@ static enum_nyamodbus_error nyamodbus_slave_readdigital(const str_nyamodbus_slav
 	return error;
 }
 
+// Read analog values
+//   device: device context
+// function: function code
+//  address: start address
+//    count: register count
+//  readfunc: function to read data
+static enum_nyamodbus_error nyamodbus_slave_readanalog(const str_nyamodbus_slave_device * device, uint8_t function, uint16_t address, uint16_t count, nyamb_readanalog readfunc)
+{
+	enum_nyamodbus_error error = ERROR_NO_FUNCTION;
+	uint8_t result[NYAMODBUS_OUTPUT_BUFFER_SIZE];
+	uint16_t i;
+	uint8_t bytes = count * 2;
+
+	if((count == 0) || (bytes + 5 < NYAMODBUS_OUTPUT_BUFFER_SIZE))
+	{
+		result[0] = *device->address; // slave address
+		result[1] = function;                 // function code
+		result[2] = bytes;                    // bytes after header
+		
+		bytes = 3;
+		for(i = 0; i < count; i++)
+		{
+			uint16_t reg = address + i;
+			
+			uint16_t value = 0;
+			error = readfunc(reg, &value);
+			
+#if defined(DEBUG_OUTPUT) && (DEBUG_OUTPUT > 1)
+			printf("    REG: %04x = %d\n", reg, contact ? 1 : 0);
+#endif
+			if(error != ERROR_OK)
+				break;
+			
+			result[bytes++] = (value >> 8) & 0xFF;
+			result[bytes++] = value & 0xFF;
+		}
+		
+		if(error == ERROR_OK)
+			nyamodbus_send_packet(device->device, result, bytes);
+		
+		return error;
+	}
+	else
+		return ERROR_INV_REQ_VALUE;
+}
 
 // Read device information
 //      id: object id
@@ -168,20 +213,7 @@ static enum_nyamodbus_error nyamodbus_slave_process(const str_nyamodbus_slave_de
 #endif
 			if(device->readholding)
 			{
-				uint16_t i = 0;
-				for(i = 0; i < count; i++)
-				{
-					uint16_t value = 0;
-					uint16_t reg   = address + i;
-					error = device->readholding(reg, &value);
-					
-					if(error != ERROR_OK)
-						break;
-					
-#if defined(DEBUG_OUTPUT) && (DEBUG_OUTPUT > 1)
-					printf("    REG: %04x = %04x\n", reg, value);
-#endif
-				}
+				error = nyamodbus_slave_readanalog(device, FUNCTION_READ_HOLDING, address, count, device->readholding);
 			}
 #if defined(DEBUG_OUTPUT) && (DEBUG_OUTPUT > 0)
 			else
@@ -200,17 +232,7 @@ static enum_nyamodbus_error nyamodbus_slave_process(const str_nyamodbus_slave_de
 #endif
 			if(device->readanalog)
 			{
-				uint16_t i = 0;
-				for(i = 0; i < count; i++)
-				{
-					uint16_t value = 0;
-					uint16_t reg   = address + i;
-					error = device->readanalog(reg, &value);
-					
-#if defined(DEBUG_OUTPUT) && (DEBUG_OUTPUT > 1)
-					printf("    REG: %04x = %04x\n", reg, value);
-#endif
-				}
+				error = nyamodbus_slave_readanalog(device, FUNCTION_READ_HOLDING, address, count, device->readanalog);
 			}
 #if defined(DEBUG_OUTPUT) && (DEBUG_OUTPUT > 0)
 			else
@@ -361,7 +383,7 @@ static enum_nyamodbus_error nyamodbus_slave_process(const str_nyamodbus_slave_de
 		{
 			uint8_t subfunc    = data[2];
 			uint8_t product_id = data[3];
-			uint8_t object     = data[4];
+			//uint8_t object     = data[4];
 			
 			if(subfunc == 0x0E)
 			{

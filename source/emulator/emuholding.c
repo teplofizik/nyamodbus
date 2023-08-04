@@ -85,5 +85,5 @@ const str_nyamodbus_slave_device emuholding = {
 	.readcoils      = 0,
 	.writecoil      = 0,
 	.readholding    = read_holding,
-	.writeholding   = write_holding,
+	.writeholding   = write_holding
 };
