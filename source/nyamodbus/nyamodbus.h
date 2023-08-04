@@ -223,6 +223,10 @@
 	// device: device context
 	void nyamodbus_reset_timeout(const str_nyamodbus_device * device);
 
+	// Is busy
+	// device: device context
+	bool nyamodbus_is_busy(const str_nyamodbus_device * device);
+
 	// Tick modbus timer
 	//  device: device context
 	//  driver: functions to process packets

@@ -122,6 +122,13 @@ static void nyamodbus_processbyte(const str_nyamodbus_device * device, uint8_t b
 	}
 }
 
+// Is busy
+// device: device context
+bool nyamodbus_is_busy(const str_nyamodbus_device * device)
+{
+	return device->state->busy;
+}
+
 // Main processing cycle
 // device: device context
 void nyamodbus_main(const str_nyamodbus_device * device, const str_nyamodbus_driver * driver, void * context)

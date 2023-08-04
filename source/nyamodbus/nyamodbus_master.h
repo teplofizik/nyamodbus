@@ -85,7 +85,7 @@
 
 	// Is master busy
 	// device: device context
-	bool nyamodbus_is_busy(const str_nyamodbus_master_device * device);
+	bool nyamodbus_master_is_busy(const str_nyamodbus_master_device * device);
 
 	// Read coils
 	// device: device context

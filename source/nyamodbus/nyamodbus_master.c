@@ -272,6 +272,13 @@ void nyamodbus_master_tick(const str_nyamodbus_master_device * device, uint32_t 
 	nyamodbus_tick(device->device, &master_driver, (void*)device, usecs);
 }
 
+// Is master busy
+// device: device context
+bool nyamodbus_master_is_busy(const str_nyamodbus_master_device * device)
+{
+	return nyamodbus_is_busy(device->device);
+}
+
 // Read coils
 // device: device context
 //  slave: address of slave device
