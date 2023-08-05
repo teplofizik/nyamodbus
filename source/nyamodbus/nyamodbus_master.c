@@ -346,3 +346,31 @@ void nyamodbus_read_inputs(const str_nyamodbus_master_device * device, uint8_t s
 	
 	nyamodbus_master_send_packet(device, buffer, 6);
 }
+
+// Write holding
+// device: device context
+//  slave: address of slave device
+//  index: holding id
+//  count: holding count
+//   data: register data [count]
+void nyamodbus_write_holdings(const str_nyamodbus_master_device * device, uint8_t slave, uint16_t index, uint16_t count, uint16_t * data)
+{
+	uint16_t buffer_size = 9 + count;
+	
+	if(buffer_size <= NYAMODBUS_OUTPUT_BUFFER_SIZE)
+	{
+		uint8_t buffer[NYAMODBUS_OUTPUT_BUFFER_SIZE];
+		int i;
+		
+		buffer[0] = slave;
+		buffer[1] = FUNCTION_WRITE_HOLDING_MULTI;
+		set_u16_value(buffer, 2, index);
+		set_u16_value(buffer, 4, count);
+		buffer[6] = count * 2;
+		
+		for(i = 0; i < count; i++)
+			set_u16_value(buffer, 7 + i * 2, data[i]);
+		
+		nyamodbus_master_send_packet(device, buffer, 7 + count);
+	}
+}

@@ -115,4 +115,12 @@
 	//  count: input count
 	void nyamodbus_read_inputs(const str_nyamodbus_master_device * device, uint8_t slave, uint16_t index, uint16_t count);
 
+	// Write holding
+	// device: device context
+	//  slave: address of slave device
+	//  index: holding id
+	//  count: holding count
+	//   data: register data [count]
+	void nyamodbus_write_holdings(const str_nyamodbus_master_device * device, uint8_t slave, uint16_t index, uint16_t count, uint16_t * data);
+
 #endif

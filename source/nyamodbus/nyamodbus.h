@@ -8,17 +8,7 @@
 #ifndef _NYAMODBUS_H
 #define _NYAMODBUS_H
 
-	// Debug mode (0-3)
-	#define DEBUG_OUTPUT                  3
-
-	// Receive buffer size
-	#define NYAMODBUS_BUFFER_SIZE         128
-
-	// Send buffer size
-	#define NYAMODBUS_OUTPUT_BUFFER_SIZE  128
-
-	// Usecs to wait answer
-	#define NYAMODBUS_PACKET_WAIT_TIMEOUT 2500
+	#include "nyamodbus_config.h"
 
 	// Parse step
 	typedef enum {
