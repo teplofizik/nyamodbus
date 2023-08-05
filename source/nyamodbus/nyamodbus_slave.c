@@ -322,6 +322,16 @@ static enum_nyamodbus_error nyamodbus_slave_process(const str_nyamodbus_slave_de
 						if(error != ERROR_OK)
 							break;
 					}
+					if((error == ERROR_OK) && (data[0] != 255))
+					{
+						uint8_t result[6];
+						result[0] = data[0]; // slave address
+						result[1] = func;    // function code
+						set_u16_value(result, 2, address);
+						set_u16_value(result, 4, count);
+						
+						nyamodbus_send_packet(device->device, result, 6);
+					}
 				}
 #if defined(DEBUG_OUTPUT) && (DEBUG_OUTPUT > 0)
 				else
@@ -356,10 +366,22 @@ static enum_nyamodbus_error nyamodbus_slave_process(const str_nyamodbus_slave_de
 						uint16_t value = get_u16_value(data, 7 + i * 2);
 						uint16_t reg   = address + i;
 						
+#if defined(DEBUG_OUTPUT) && (DEBUG_OUTPUT > 1)
 						printf("    REG %04x = %04x\n", reg, value);
+#endif
 						error = device->writeholding(reg, value);
 						if(error != ERROR_OK)
 							break;
+					}
+					if((error == ERROR_OK) && (data[0] != 255))
+					{
+						uint8_t result[6];
+						result[0] = data[0]; // slave address
+						result[1] = func;    // function code
+						set_u16_value(result, 2, address);
+						set_u16_value(result, 4, count);
+						
+						nyamodbus_send_packet(device->device, result, 6);
 					}
 				}
 #if defined(DEBUG_OUTPUT) && (DEBUG_OUTPUT > 0)
