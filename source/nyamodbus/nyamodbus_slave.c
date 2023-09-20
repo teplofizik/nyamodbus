@@ -115,7 +115,7 @@ static enum_nyamodbus_error nyamodbus_slave_readanalog(const str_nyamodbus_slave
 			error = readfunc(reg, &value);
 			
 #if defined(DEBUG_OUTPUT) && (DEBUG_OUTPUT > 1)
-			printf("    REG: %04x = %d\n", reg, contact ? 1 : 0);
+			printf("    REG: %04x = %d\n", reg, value);
 #endif
 			if(error != ERROR_OK)
 				break;
@@ -410,7 +410,7 @@ static enum_nyamodbus_error nyamodbus_slave_process(const str_nyamodbus_slave_de
 			if(subfunc == 0x0E)
 			{
 #if defined(DEBUG_OUTPUT) && (DEBUG_OUTPUT > 1)
-				printf("   READ_DEVICE_IDENTIFICATION: product %02x object %d\n", product_id, object);
+				printf("   READ_DEVICE_IDENTIFICATION: product %02x\n", product_id);
 #endif
 				if(device->readdeviceinfo)
 				{

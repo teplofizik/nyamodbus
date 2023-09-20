@@ -215,8 +215,9 @@ void emu_send(const uint8_t * data, uint8_t size)
 //   size: size of data
 void emu_dump_buffer(const char * name, const uint8_t * data, uint8_t size)
 {
+	int i;
 	printf("%s: ", name);
-	for(int i = 0; i < size; i++)
+	for(i = 0; i < size; i++)
 	{
 		printf("%02x ", data[i]);
 		

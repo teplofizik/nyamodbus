@@ -204,9 +204,10 @@ void nyamodbus_tick(const str_nyamodbus_device * device, const str_nyamodbus_dri
 {
 	if (device->state->busy)
 	{
+		uint32_t timeout = (device->state->buffer.added > 0) ? NYAMODBUS_PACKET_WAIT_TIMEOUT : NYAMODBUS_PACKET_START_TIMEOUT;
 		device->state->elapsed_us += usecs;
 		
-		if(device->state->elapsed_us >= NYAMODBUS_PACKET_WAIT_TIMEOUT)
+		if(device->state->elapsed_us >= timeout)
 		{
 			nyamodbus_timeout(device, driver, context);
 			

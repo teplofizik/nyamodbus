@@ -20,4 +20,7 @@
 	// Usecs to wait answer
 	#define NYAMODBUS_PACKET_WAIT_TIMEOUT 4500
 
+	// Usecs to wait start to answer
+	#define NYAMODBUS_PACKET_START_TIMEOUT 30000
+	
 #endif
