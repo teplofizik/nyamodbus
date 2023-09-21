@@ -142,7 +142,7 @@ static void master_read_holding_cb(uint8_t slave, uint16_t index, uint16_t value
 		// Index and value are provided for each readed register
 		
 	}
-	else if(slave == ENC_BOARD)
+	else if(slave == DEVICE_2)
 	{
 		device_2_timeout = DEFAULT_DEVICE_2_TIMEOUT;
 		
