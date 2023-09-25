@@ -371,6 +371,6 @@ void nyamodbus_write_holdings(const str_nyamodbus_master_device * device, uint8_
 		for(i = 0; i < count; i++)
 			set_u16_value(buffer, 7 + i * 2, data[i]);
 		
-		nyamodbus_master_send_packet(device, buffer, 7 + count);
+		nyamodbus_master_send_packet(device, buffer, 7 + count * 2);
 	}
 }
