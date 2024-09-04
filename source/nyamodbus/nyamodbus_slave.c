@@ -163,6 +163,9 @@ static enum_nyamodbus_error nyamodbus_slave_process(const str_nyamodbus_slave_de
 {
 	enum_nyamodbus_error error = ERROR_NO_FUNCTION;
 	enum_modbus_function_code func = (enum_modbus_function_code)data[1];
+#if defined(DEBUG_OUTPUT) && (DEBUG_OUTPUT > 2)
+	printf("   FUNC: %d\n", func);
+#endif
 	switch(func)
 	{
 	case FUNCTION_READ_COIL:
@@ -232,7 +235,7 @@ static enum_nyamodbus_error nyamodbus_slave_process(const str_nyamodbus_slave_de
 #endif
 			if(device->readanalog)
 			{
-				error = nyamodbus_slave_readanalog(device, FUNCTION_READ_HOLDING, address, count, device->readanalog);
+				error = nyamodbus_slave_readanalog(device, FUNCTION_READ_INPUTS, address, count, device->readanalog);
 			}
 #if defined(DEBUG_OUTPUT) && (DEBUG_OUTPUT > 0)
 			else
@@ -490,6 +493,12 @@ static void nyamodbus_slave_on_valid_packet(void * context, const uint8_t * data
 			// Send error packet
 			nyamodbus_slave_send_error(device, data[1], error);
 		}
+	}
+	else
+	{
+#if defined(DEBUG_OUTPUT) && (DEBUG_OUTPUT > 2)
+		printf("  Slave invalid: %02x\n", slave);
+#endif
 	}
 }
 

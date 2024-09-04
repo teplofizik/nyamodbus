@@ -7,6 +7,27 @@
 #include <string.h>
 #include <stdio.h>
 
+#if defined(DEBUG_OUTPUT) && (DEBUG_OUTPUT > 2)
+void dump_array(const char * name, const uint8_t * data, uint16_t size)
+{
+	int i;
+	puts(name);
+	for(i = 0; i < size; i++)
+	{
+		if((i % 16) == 0)
+			printf("%02X: ", i);
+		
+		printf("%02X ", data[i]);
+		
+		if(((i % 16) == 15) || (i == size - 1))
+			puts("");
+	}
+}
+
+#else
+	#define dump_array(a,b,c)
+#endif
+
 // Init modbus state
 // device: device context
 void nyamodbus_init(const str_nyamodbus_device * device)
@@ -85,6 +106,7 @@ void nyamodbus_send_packet(const str_nyamodbus_device * device, const uint8_t * 
 	
 #if defined(DEBUG_OUTPUT) && (DEBUG_OUTPUT > 2)
 	printf(" Send packet with size %d\n", size);
+	dump_array("Sended:", data, size);
 #endif
 
 	memcpy(result, data, size);
@@ -106,6 +128,7 @@ static bool nyamodbus_checkcrc(const uint8_t * data, uint8_t size)
 	
 #if defined(DEBUG_OUTPUT) && (DEBUG_OUTPUT > 1)
 	printf(" Compare crc16: calc %04x and expected %04x => %s\n", calc_crc, exists_crc, correct ? "ok" : "fail");
+	dump_array("Receive:", data, size);
 #endif
 	return correct;
 }
