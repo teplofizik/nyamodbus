@@ -8,7 +8,11 @@
 #ifndef _NYAMODBUS_H
 #define _NYAMODBUS_H
 
-	#include "nyamodbus_config.h"
+#include "nyamodbus_config.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 	// Parse step
 	typedef enum {
@@ -223,5 +227,9 @@
 	// context: driver context
 	//   usecs: useconds after last call
 	void nyamodbus_tick(const str_nyamodbus_device * device, const str_nyamodbus_driver * driver, void * context, uint32_t usecs);
+
+#ifdef __cplusplus
+};
+#endif
 
 #endif // _NYAMODBUS_H

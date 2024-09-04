@@ -8,6 +8,10 @@
 #ifndef _NYAMODBUS_UTILS_H
 #define _NYAMODBUS_UTILS_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 	// Get u16 value from packet
 	//   data: packet data
 	// offset: offset
@@ -21,5 +25,9 @@
 
 	// Swap bytes in u16 value
 	uint16_t swap_u16(uint16_t val);
+
+#ifdef __cplusplus
+};
+#endif
 
 #endif

@@ -14,18 +14,17 @@
 #include <nyamodbus/nyamodbus_utils.h>
 
 static str_nyamodbus_state        state;
-static str_nyamodbus_master_state master_state;
 
-bool serial_master_send(const uint8_t * data, uint8_t size);
-bool serial_master_receive(uint8_t * data, uint8_t * size);
+bool serial_send(const uint8_t * data, uint8_t size);
+bool serial_receive(uint8_t * data, uint8_t * size);
 
 static const str_modbus_io        io = {
-	.send           = serial_master_send,
-	.receive        = serial_master_receive
+	.send           = serial_send,
+	.receive        = serial_receive
 };
 
 // Modbus slave state
-const str_nyamodbus_device modbus_master = {
+const str_nyamodbus_device modbus_serial = {
 	.io =    &io,
 	.state = &state
 };
@@ -36,8 +35,11 @@ static bool                                serial_running = false;
 // File descriptor
 static int                                 serial_fd = -1;
 
-// Emulator device
-static const str_nyamodbus_master_device * serial_device = 0;
+// Master serial device
+static const str_nyamodbus_master_device * serial_master_device = 0;
+
+// Slave serial device
+static const str_nyamodbus_slave_device *  serial_slave_device = 0;
 
 // Thread control
 static pthread_t                           serial_thread_id;
@@ -62,7 +64,7 @@ int get_unreaded_bytes(void)
 //   data: data to send
 //   size: size of data
 // return: true, if ok
-bool serial_master_send(const uint8_t * data, uint8_t size)
+bool serial_send(const uint8_t * data, uint8_t size)
 {
 	int writed = write(serial_fd, data, size);
 	
@@ -73,7 +75,7 @@ bool serial_master_send(const uint8_t * data, uint8_t size)
 //   data: data to read
 //   size: size of buffer, size of readed data if result is true
 // return: true, if ok
-bool serial_master_receive(uint8_t * data, uint8_t * size)
+bool serial_receive(uint8_t * data, uint8_t * size)
 {
 	int req = get_unreaded_bytes();
 	if(req > 0)
@@ -91,20 +93,44 @@ bool serial_master_receive(uint8_t * data, uint8_t * size)
 }
 
 // Main emulator processing thread
-static void * serial_thread(void * args)
+static void * serial_master_thread(void * args)
 {
 	uint64_t time = get_timestamp();
 	// Timestamp to calc timeouts
 	uint64_t serial_timestamp = time;
 
 	puts("Serial is started");
-	nyamodbus_master_init(serial_device);
+	nyamodbus_master_init(serial_master_device);
 	while(serial_running)
 	{
 		time = get_timestamp();
 		
-		nyamodbus_master_tick(serial_device, time - serial_timestamp);
-		nyamodbus_master_main(serial_device);
+		nyamodbus_master_tick(serial_master_device, time - serial_timestamp);
+		nyamodbus_master_main(serial_master_device);
+		
+		serial_timestamp = time;
+		usleep(1000);
+	}
+	
+	puts("Serial is stopped");
+	return 0;
+}
+
+// Main emulator processing thread
+static void * serial_slave_thread(void * args)
+{
+	uint64_t time = get_timestamp();
+	// Timestamp to calc timeouts
+	uint64_t serial_timestamp = time;
+
+	puts("Serial is started");
+	nyamodbus_slave_init(serial_slave_device);
+	while(serial_running)
+	{
+		time = get_timestamp();
+		
+		nyamodbus_slave_tick(serial_slave_device, time - serial_timestamp);
+		nyamodbus_slave_main(serial_slave_device);
 		
 		serial_timestamp = time;
 		usleep(1000);
@@ -184,7 +210,7 @@ bool mbserial_open(const char * dev)
 //    dev: path to tty device
 // device: device config
 // return: true, if started
-bool mbserial_start(const char * dev, const str_nyamodbus_master_device * device)
+bool mbserial_master_start(const char * dev, const str_nyamodbus_master_device * device)
 {
 	if(!serial_running)
 	{
@@ -192,11 +218,45 @@ bool mbserial_start(const char * dev, const str_nyamodbus_master_device * device
 		{
 			pthread_attr_t attr;
 			
-			serial_device = device;
+			serial_master_device = device;
 			serial_running = true;
 			
 			pthread_attr_init(&attr);
-			pthread_create(&serial_thread_id, &attr, serial_thread, 0);
+			pthread_create(&serial_thread_id, &attr, serial_master_thread, 0);
+			
+			return true;
+		}
+		else
+		{
+			puts("Cannot open tty device");
+			return false;
+		}
+	}
+	else
+	{
+		puts("Serial is already running");
+		return false;
+	}
+}
+
+
+// Start serial modbus master on tty service
+//    dev: path to tty device
+// device: device config
+// return: true, if started
+bool mbserial_slave_start(const char * dev, const str_nyamodbus_slave_device * device)
+{
+	if(!serial_running)
+	{
+		if(mbserial_open(dev))
+		{
+			pthread_attr_t attr;
+			
+			serial_slave_device = device;
+			serial_running = true;
+			
+			pthread_attr_init(&attr);
+			pthread_create(&serial_thread_id, &attr, serial_slave_thread, 0);
 			
 			return true;
 		}

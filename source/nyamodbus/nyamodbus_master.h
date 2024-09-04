@@ -8,8 +8,12 @@
 #ifndef _NYAMODBUS_MASTER_H
 #define _NYAMODBUS_MASTER_H
 
-	#include "nyamodbus.h"
+#include "nyamodbus.h"
 	
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 	// Digital read (coils, contacts)
 	typedef void (*nyam_master_digital_read)(uint8_t slave, uint16_t index, bool value);
 
@@ -122,5 +126,10 @@
 	//  count: holding count
 	//   data: register data [count]
 	void nyamodbus_write_holdings(const str_nyamodbus_master_device * device, uint8_t slave, uint16_t index, uint16_t count, uint16_t * data);
+
+#ifdef __cplusplus
+};
+#endif
+
 
 #endif

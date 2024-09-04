@@ -8,7 +8,11 @@
 #ifndef _NYAMODBUS_SLAVE_H
 #define _NYAMODBUS_SLAVE_H
 
-    #include "nyamodbus.h"
+#include "nyamodbus.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 	// Driver configuration
 	typedef struct {
@@ -59,5 +63,9 @@
 
 	// Reset modbus state
 	void nyamodbus_slave_reset(const str_nyamodbus_slave_device * device);
+
+#ifdef __cplusplus
+};
+#endif
 
 #endif

@@ -12,7 +12,7 @@ static void master_read_holding_cb(uint8_t slave, uint16_t index, uint16_t value
 static str_nyamodbus_master_state master_state;
 
 static const str_nyamodbus_master_device master = {
-	.device        = &modbus_master,
+	.device        = &modbus_serial,
 	.state         = &master_state,
 	.on_error      = master_error_cb,
 	.read_contacts = master_read_contacts_cb,
@@ -110,7 +110,7 @@ void read_devid(void)
 
 static void process_modbus(int argc, char *argv[], const char * dev)
 {
-	if(mbserial_start(dev, &master))
+	if(mbserial_master_start(dev, &master))
 	{
 		puts("Started");
 		
