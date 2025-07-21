@@ -9,7 +9,7 @@
 #define _NYAMODBUS_CONFIG_H
 
 	// Debug mode (0-3)
-	#define DEBUG_OUTPUT                  3
+	#define DEBUG_OUTPUT                  0
 
 	// Receive buffer size
 	#define NYAMODBUS_BUFFER_SIZE         128
